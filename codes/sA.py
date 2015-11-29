@@ -77,13 +77,7 @@ class dA(object):
             self.x = T.dmatrix(name='input')
         else:
             self.x = input
-
         self.params = [self.W, self.b, self.b_prime]
-
-    def get_corrupted_input(self, input, corruption_level):
-        return self.theano_rng.binomial(size=input.shape, n=1,
-                                        p=1 - corruption_level,
-                                        dtype=theano.config.floatX) * input
 
     def get_hidden_values(self, input):
         return T.nnet.sigmoid(T.dot(input, self.W) + self.b)
@@ -91,12 +85,39 @@ class dA(object):
     def get_reconstructed_input(self, hidden):
         return T.nnet.sigmoid(T.dot(hidden, self.W_prime) + self.b_prime)
 
-    def get_cost_updates(self, corruption_level, learning_rate):
-        tilde_x = self.get_corrupted_input(self.x, corruption_level)
-        y = self.get_hidden_values(tilde_x)
+
+    def kl_divergence(self, p, p_hat):
+        term1 = p * T.log(p)
+        term2 = p * T.log(p_hat)
+        term3 = (1-p) * T.log(1 - p)
+        term4 = (1-p) * T.log(1 - p_hat)
+        return term1 - term2 + term3 - term4
+
+    def sparsity_penalty(self, h, sparsity_level=0.05, sparsity_regularization=0.01):
+        sparsity_lvl = theano.shared(
+                        value=sparsity_level* numpy.ones(
+                            self.n_hidden,
+                            dtype=theano.config.floatX
+                        ),
+                        name='sparsity_level',
+                        borrow=True
+                    )        
+        avg_act = h.mean(axis=0)
+        kl_div = self.kl_divergence(sparsity_lvl, avg_act)
+        sparsity_penalty = sparsity_regularization * kl_div.sum()
+        return sparsity_penalty
+
+    def get_cost_updates(self, corruption_level, l2, learning_rate, sparsity_level, sparsity_regularization):
+        y = self.get_hidden_values(self.x)
         z = self.get_reconstructed_input(y)
         L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
         cost = T.mean(L)
+
+        sparsity_penal = self.sparsity_penalty(y, sparsity_level, sparsity_regularization)
+        cost += sparsity_penal   
+        
+        if l2: cost += l2 * T.sum(self.W**2)
+
 
         gparams = T.grad(cost, self.params)
         updates = [
@@ -108,6 +129,8 @@ class dA(object):
         
 
 def test_toy(learning_rate=0.1, training_epochs=15,
+             sparsity_regularization=0.001,
+             sparsity_level=0.05,             
              n_hidden=30,
              dataset='../datasets/mnist.pkl.gz',
              batch_size=20,
@@ -145,7 +168,10 @@ def test_toy(learning_rate=0.1, training_epochs=15,
 
     cost, updates = da.get_cost_updates(
         corruption_level=0.3,
-        learning_rate=learning_rate
+        learning_rate=learning_rate,
+        l2=0.0001,
+        sparsity_level=sparsity_level,
+        sparsity_regularization=sparsity_regularization
     )
 
     train_da = theano.function(
@@ -187,22 +213,14 @@ def test_toy(learning_rate=0.1, training_epochs=15,
     print 'Ending training at %f ' %end_time
     print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)
 
-
-    print >> sys.stderr, ('The 30% corruption code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % (training_time / 60.))
-    image = Image.fromarray(tile_raster_images(
-        X=da.W.get_value(borrow=True).T,
-        img_shape=(4, 4), tile_shape=(10, 10),
-        tile_spacing=(1, 1)))
-    image.save('filters_corruption_30.png')
-
     os.chdir('../')
 
 
 
 def test_mnist(learning_rate=0.1, training_epochs=15,
                n_hidden=500,
+               sparsity_regularization=0.001,
+               sparsity_level=0.05,                     
                dataset='../datasets/mnist.pkl.gz',
                batch_size=20,
                output_folder='MNIST_sA_plots'):
@@ -232,7 +250,10 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
 
     cost, updates = da.get_cost_updates(
         corruption_level=0.3,
-        learning_rate=learning_rate
+        learning_rate=learning_rate,
+        l2=0.0001,
+        sparsity_level=sparsity_level,
+        sparsity_regularization=sparsity_regularization        
     )
 
     train_da = theano.function(
@@ -274,19 +295,9 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     print 'Ending training at %f ' %end_time
     print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)
 
-
-    print >> sys.stderr, ('The 30% corruption code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % (training_time / 60.))
-    image = Image.fromarray(tile_raster_images(
-        X=da.W.get_value(borrow=True).T,
-        img_shape=(28, 28), tile_shape=(10, 10),
-        tile_spacing=(1, 1)))
-    image.save('filters_corruption_30.png')
-
     os.chdir('../')
 
 
 if __name__ == '__main__':
     test_toy()
-    #test_mnist()
+    test_mnist()
