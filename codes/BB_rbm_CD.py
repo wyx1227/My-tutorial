@@ -7,7 +7,6 @@ import numpy
 import theano
 import theano.tensor as T
 import os
-import time
 import timeit
 
 from theano.tensor.shared_randomstreams import RandomStreams
@@ -206,8 +205,7 @@ def test_toy(learning_rate=0.1, training_epochs=15,
     )
     print 'Starting training with %d epochs' %training_epochs
     plotting_time = 0.
-    start_time = time.clock()
-    print 'Starting training at %f ' %start_time
+    start_time = timeit.default_timer()
     
     for epoch in xrange(training_epochs):
         mean_cost = []
@@ -229,9 +227,8 @@ def test_toy(learning_rate=0.1, training_epochs=15,
         plotting_stop = timeit.default_timer()
         plotting_time += (plotting_stop - plotting_start) 
                 
-    end_time = time.clock()
-    print 'Ending training at %f ' %end_time
-    print 'Training took %f minutes' % ((end_time - start_time)/ 60.)
+    end_time = timeit.default_timer()
+    print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)
 
     number_of_test_samples = test_set_x.get_value(borrow=True).shape[0]
     
@@ -330,7 +327,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
         },
         name='train_rbm'
     )
-
+    print 'Starting training with %d epochs' %training_epochs
     plotting_time = 0.
     start_time = timeit.default_timer()
 
@@ -357,8 +354,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     end_time = timeit.default_timer()
 
     pretraining_time = (end_time - start_time) - plotting_time
-    print 'Ending training at %f ' %end_time
-    print ('Training took %f minutes' % (pretraining_time / 60.))
+    print ('Training took %.2f minutes' % (pretraining_time / 60.))
 
     number_of_test_samples = test_set_x.get_value(borrow=True).shape[0]
 

@@ -8,7 +8,6 @@ except ImportError:
 import theano
 import theano.tensor as T
 import os
-import time
 
 import timeit
 
@@ -166,10 +165,14 @@ class RBM(object):
         return cost
 
 
-def test_toy(learning_rate=0.1, training_epochs=15, 
-             n_chains=20, n_samples=10, batch_size=20, 
+def test_toy(learning_rate=0.1,
+             training_epochs=15, 
+             n_chains=20,
+             n_samples=10,
+             batch_size=20, 
              output_folder='toy_rbm_PCD_plots',
              n_hidden=30):
+    
     print 'Creating dataset...'
     train_set_x = toy_dataset(p=0.001, size=10000, seed=238904)
     test_set_x = toy_dataset(p=0.001, size=1000, seed=238905)
@@ -214,8 +217,7 @@ def test_toy(learning_rate=0.1, training_epochs=15,
     )
     print 'Starting training with %d epochs' %training_epochs 
     plotting_time = 0.
-    start_time = time.clock()
-    print 'Starting training at %f ' %start_time
+    start_time = timeit.default_timer()
     
     for epoch in xrange(training_epochs):
         mean_cost = []
@@ -236,9 +238,8 @@ def test_toy(learning_rate=0.1, training_epochs=15,
         plotting_stop = timeit.default_timer()
         plotting_time += (plotting_stop - plotting_start)      
     
-    end_time = time.clock()
-    print 'Ending training at %f ' %end_time
-    print 'Training took %f minutes' % ((end_time - start_time)/ 60.)
+    end_time = timeit.default_timer()
+    print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)
     
     number_of_test_samples = test_set_x.get_value(borrow=True).shape[0]
     
@@ -342,6 +343,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
         name='train_rbm'
     )
 
+    print 'Starting training with %d epochs' %training_epochs 
     plotting_time = 0.
     start_time = timeit.default_timer()
 
@@ -368,8 +370,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     end_time = timeit.default_timer()
 
     pretraining_time = (end_time - start_time) - plotting_time
-
-    print ('Training took %f minutes' % (pretraining_time / 60.))
+    print ('Training took %.2f minutes' % (pretraining_time / 60.))
 
     number_of_test_samples = test_set_x.get_value(borrow=True).shape[0]
 
@@ -430,7 +431,6 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     image.save('samples.png')
     os.chdir('../')             
                  
-
 
 if __name__ == '__main__':
     test_toy()

@@ -1,7 +1,6 @@
 import os
 import sys
 import timeit
-import time
 
 import numpy
 
@@ -19,7 +18,7 @@ except ImportError:
 from toy_dataset import toy_dataset
 
 
-class dA(object):
+class sA(object):
 
     def __init__(
         self,
@@ -158,7 +157,7 @@ def test_toy(learning_rate=0.1, training_epochs=15,
     rng = numpy.random.RandomState(123)
     theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-    da = dA(
+    sa = sA(
         numpy_rng=rng,
         theano_rng=theano_rng,
         input=x,
@@ -166,7 +165,7 @@ def test_toy(learning_rate=0.1, training_epochs=15,
         n_hidden=n_hidden
     )
 
-    cost, updates = da.get_cost_updates(
+    cost, updates = sa.get_cost_updates(
         corruption_level=0.3,
         learning_rate=learning_rate,
         l2=0.0001,
@@ -185,8 +184,7 @@ def test_toy(learning_rate=0.1, training_epochs=15,
 
     print 'Starting training with %d epochs' %training_epochs
     plotting_time = 0.
-    start_time = time.clock()
-    print 'Starting training at %f ' %start_time
+    start_time = timeit.default_timer()
  
     for epoch in xrange(training_epochs):
         c = []
@@ -198,7 +196,7 @@ def test_toy(learning_rate=0.1, training_epochs=15,
         plotting_start = timeit.default_timer()
         image = Image.fromarray(
                     tile_raster_images(
-                        X=da.W.get_value(borrow=True).T,
+                        X=sa.W.get_value(borrow=True).T,
                         img_shape=(4, 4),
                         tile_shape=(10, 10),
                         tile_spacing=(1, 1)
@@ -208,9 +206,8 @@ def test_toy(learning_rate=0.1, training_epochs=15,
         plotting_stop = timeit.default_timer()
         plotting_time += (plotting_stop - plotting_start) 
                 
-    end_time = time.clock()
+    end_time = timeit.default_timer()
     training_time = (end_time - start_time)
-    print 'Ending training at %f ' %end_time
     print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)
 
     os.chdir('../')
@@ -240,7 +237,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     rng = numpy.random.RandomState(123)
     theano_rng = RandomStreams(rng.randint(2 ** 30))
 
-    da = dA(
+    sa = sA(
         numpy_rng=rng,
         theano_rng=theano_rng,
         input=x,
@@ -248,7 +245,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
         n_hidden=500
     )
 
-    cost, updates = da.get_cost_updates(
+    cost, updates = sa.get_cost_updates(
         corruption_level=0.3,
         learning_rate=learning_rate,
         l2=0.0001,
@@ -267,8 +264,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
 
     print 'Starting training with %d epochs' %training_epochs
     plotting_time = 0.
-    start_time = time.clock()
-    print 'Starting training at %f ' %start_time
+    start_time = timeit.default_timer()
  
     for epoch in xrange(training_epochs):
         c = []
@@ -280,7 +276,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
         plotting_start = timeit.default_timer()
         image = Image.fromarray(
                     tile_raster_images(
-                        X=da.W.get_value(borrow=True).T,
+                        X=sa.W.get_value(borrow=True).T,
                         img_shape=(28, 28),
                         tile_shape=(10, 10),
                         tile_spacing=(1, 1)
@@ -290,13 +286,11 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
         plotting_stop = timeit.default_timer()
         plotting_time += (plotting_stop - plotting_start) 
                 
-    end_time = time.clock()
+    end_time = timeit.default_timer()
     training_time = (end_time - start_time)
-    print 'Ending training at %f ' %end_time
     print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)
 
     os.chdir('../')
-
 
 if __name__ == '__main__':
     test_toy()
