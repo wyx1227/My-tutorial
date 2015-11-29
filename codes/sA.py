@@ -111,7 +111,7 @@ def test_toy(learning_rate=0.1, training_epochs=15,
              n_hidden=30,
              dataset='../datasets/mnist.pkl.gz',
              batch_size=20,
-             output_folder='toy_dA_plots'):
+             output_folder='toy_sA_plots'):
  
     print 'Creating dataset...'
     train_set_x = toy_dataset(p=0.001, size=10000, seed=238904)
@@ -205,7 +205,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
                n_hidden=500,
                dataset='../datasets/mnist.pkl.gz',
                batch_size=20,
-               output_folder='MNIST_dA_plots'):
+               output_folder='MNIST_sA_plots'):
 
     datasets = load_data(dataset)
     train_set_x, train_set_y = datasets[0]

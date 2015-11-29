@@ -182,7 +182,12 @@ def test_toy(learning_rate=0.1, training_epochs=15,
     theano_rng = RandomStreams(rng.randint(2 ** 30))
     
     print 'Creating RBM...'
-    rbm = RBM(input=x, n_visible=4 * 4, n_hidden=n_hidden, numpy_rng=rng, theano_rng=theano_rng)    
+    rbm = RBM(
+            input=x, 
+            n_visible=4 * 4, 
+            n_hidden=n_hidden, 
+            numpy_rng=rng, 
+            theano_rng=theano_rng)    
     
     cost, updates = rbm.get_cost_updates(lr=learning_rate, k=15)
 
