@@ -106,7 +106,7 @@ class sA(object):
         sparsity_penalty = sparsity_regularization * kl_div.sum()
         return sparsity_penalty
 
-    def get_cost_updates(self, corruption_level, l2, learning_rate, sparsity_level, sparsity_regularization):
+    def get_cost_updates(self, l2, learning_rate, sparsity_level, sparsity_regularization):
         y = self.get_hidden_values(self.x)
         z = self.get_reconstructed_input(y)
         L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
@@ -166,7 +166,6 @@ def test_toy(learning_rate=0.1, training_epochs=15,
     )
 
     cost, updates = sa.get_cost_updates(
-        corruption_level=0.3,
         learning_rate=learning_rate,
         l2=0.0001,
         sparsity_level=sparsity_level,
@@ -246,7 +245,6 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     )
 
     cost, updates = sa.get_cost_updates(
-        corruption_level=0.3,
         learning_rate=learning_rate,
         l2=0.0001,
         sparsity_level=sparsity_level,

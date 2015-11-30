@@ -1,0 +1,101 @@
+{
+ "metadata": {
+  "name": "",
+  "signature": "sha256:9dcc16672d4808a264f1178242b7d8c912f187c60c7eda1a1767b7c4b5687bcf"
+ },
+ "nbformat": 3,
+ "nbformat_minor": 0,
+ "worksheets": [
+  {
+   "cells": [
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "## Training an MLP\n",
+      "\n",
+      "To train an MLP, we learn **all** parameters of the model ($W, \\mathbf{b}, V,\n",
+      "\\mathbf{c}$) by gradient descent,\n",
+      "just as we learned the parameters $W, \\mathbf{b}$ previously when training the\n",
+      "SVM.\n",
+      "\n",
+      "\n",
+      "The initial values for the weights of a hidden layer ($V$) should be uniformly\n",
+      "sampled from a symmetric interval that depends on the activation function.\n",
+      "For the tanh activation function results obtained in [Xavier10]_ show that the\n",
+      "interval should be\n",
+      "$$\n",
+      "\\left[ -\\sqrt{\\frac{6}{D_0 + D_1}}, \\sqrt{\\frac{6}{D_0 + D_1}} \\right]\n",
+      "$$\n",
+      "\n",
+      "For the logistic sigmoid function $1 / (1 + e^{-u})$ the interval is slightly\n",
+      "different:\n",
+      "\n",
+      "$$\n",
+      "\\left[ -4\\sqrt{\\frac{6}{D_0 + D_1}},4\\sqrt{\\frac{6}{D_0 + D_1}} \\right]\n",
+      "$$.\n",
+      "\n",
+      "This initialization ensures that at least early in training, each neuron operates in a regime of its activation function where information can easily be propagated both upward (activations flowing from inputs to outputs) and backward (gradients flowing from outputs to inputs)."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "\"### Tips and Tricks: Learning Rate\\n\",\n",
+      "      \"\\n\",\n",
+      "      \"Optimization by stochastic gradient descent is very sensitive to the step size or _learning rate_.\\n\",\n",
+      "      \"There is a great deal of literature on how to choose a the learning rate, and how to change it during optimization.\\n\",\n",
+      "      \"The simplest solution is to use a constant rate. Rule of thumb: try\\n\",\n",
+      "      \"several log-spaced values ($10^{-1}, 10^{-2}, \\\\ldots$) and narrow the\\n\",\n",
+      "      \"(logarithmic) grid search to the region where you obtain the lowest\\n\",\n",
+      "      \"validation error.\\n\",\n",
+      "      \"\\n\",\n",
+      "      \"Decreasing the learning rate over time can help a model to settle down into a\\n\",\n",
+      "      \"[local] minimum.\\n\",\n",
+      "      \"One simple rule for doing that is $\\\\frac{\\\\mu_0}{1 + d\\\\times t}$ where\\n\",\n",
+      "      \"$\\\\mu_0$ is the initial rate (chosen, perhaps, using the grid search\\n\",\n",
+      "      \"technique explained above), $d$ is a so-called \\\"decrease constant\\\"\\n\",\n",
+      "      \"which controls the rate at which the learning rate decreases (typically, a\\n\",\n",
+      "      \"smaller positive number, $10^{-3}$ and smaller) and $t$ is the epoch/stage.\\n\",\n",
+      "      \"\\n\",\n",
+      "      \"[Section 4.7](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf) details\\n\",\n",
+      "      \"procedures for choosing a learning rate for each parameter (weight) in our\\n\",\n",
+      "      \"network and for choosing them adaptively based on the error of the classifier.\\n\",\n",
+      "      \"\\n\",\n",
+      "      \"### Tips and Tricks: Norm Regularization\\n\",\n",
+      "      \"\\n\",\n",
+      "      \"Typical values to try for the L1/L2 regularization parameter $\\\\lambda$ are $10^{-2}, 10^{-3}, \\\\ldots$.\\n\",\n",
+      "      \"It can be useful to regularize the topmost layers in an MLP (closest\\n\",\n",
+      "      \"to and including the classifier itself) to prevent them from overfitting noisy\\n\",\n",
+      "      \"hidden layer features, and to encourage the features themselves to be more\\n\",\n",
+      "      \"discriminative.\"\n",
+      "        "
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "ename": "IndentationError",
+       "evalue": "unexpected indent (<ipython-input-1-94f5c17ef383>, line 2)",
+       "output_type": "pyerr",
+       "traceback": [
+        "\u001b[0;36m  File \u001b[0;32m\"<ipython-input-1-94f5c17ef383>\"\u001b[0;36m, line \u001b[0;32m2\u001b[0m\n\u001b[0;31m    \"\\n\",\u001b[0m\n\u001b[0m    ^\u001b[0m\n\u001b[0;31mIndentationError\u001b[0m\u001b[0;31m:\u001b[0m unexpected indent\n"
+       ]
+      }
+     ],
+     "prompt_number": 1
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    }
+   ],
+   "metadata": {}
+  }
+ ]
+}

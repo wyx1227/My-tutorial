@@ -16,8 +16,21 @@ except ImportError:
 
 
 class cA(object):
-    def __init__(self, numpy_rng, input=None, n_visible=784, n_hidden=100,
-                 n_batchsize=1, W=None, bhid=None, bvis=None):
+    def __init__(self, numpy_rng,
+                 theano_rng=None,
+                 input=None,
+                 n_visible=784,
+                 n_hidden=100,
+                 n_batchsize=1,
+                 W=None,
+                 bhid=None,
+                 bvis=None):
+        
+
+        if not theano_rng:
+            theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
+        
+        
         self.n_visible = n_visible
         self.n_hidden = n_hidden
         self.n_batchsize = n_batchsize
@@ -91,11 +104,14 @@ def test_cA(learning_rate=0.01, training_epochs=20,
             batch_size=10, output_folder='cA_plots', contraction_level=.1):
 
     datasets = load_data(dataset)
+    
     train_set_x, train_set_y = datasets[0]
-    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    
+    n_train_batches = train_set_x.get_value(borrow=True).shape[0] 
+    n_train_batches /= batch_size
 
-    index = T.lscalar()    # index to a [mini]batch
-    x = T.matrix('x')  # the data is presented as rasterized images
+    index = T.lscalar() 
+    x = T.matrix('x')
 
     if not os.path.isdir(output_folder):
         os.makedirs(output_folder)

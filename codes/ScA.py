@@ -15,7 +15,7 @@ from utils import load_data, tile_raster_images
 from toy_dataset import toy_dataset
 
 from mlp import HiddenLayer
-from dA import dA
+from cA import cA
 
 class SdA(object):
 
@@ -62,7 +62,7 @@ class SdA(object):
 
             self.params.extend(sigmoid_layer.params)
 
-            dA_layer = dA(numpy_rng=numpy_rng,
+            dA_layer = cA(numpy_rng=numpy_rng,
                           theano_rng=theano_rng,
                           input=layer_input,
                           n_visible=input_size,
@@ -86,20 +86,20 @@ class SdA(object):
     def pretraining_functions(self, train_set_x, batch_size):
 
         index = T.lscalar('index') 
-        corruption_level = T.scalar('corruption') 
+        contraction_level = T.scalar('contraction_level') 
         learning_rate = T.scalar('lr')
         batch_begin = index * batch_size
         batch_end = batch_begin + batch_size
 
         pretrain_fns = []
-        for dA in self.dA_layers:
-            cost, updates = dA.get_cost_updates(corruption_level,
+        for cA in self.dA_layers:
+            cost, updates = cA.get_cost_updates(contraction_level,
                                                 learning_rate)
             
             fn = theano.function(
                 inputs=[
                     index,
-                    theano.Param(corruption_level, default=0.2),
+                    theano.Param(contraction_level, default=0.2),
                     theano.Param(learning_rate, default=0.1)
                 ],
                 outputs=cost,
@@ -212,14 +212,14 @@ def test_SdA(finetune_lr=0.1, pretraining_epochs=15,
 
     print '... pre-training the model'
     start_time = timeit.default_timer()
-    ## Pre-train layer-wise
-    corruption_levels = [.1, .2, .3]
+
+    contraction_levels = [.1, .2, .3]
     for i in xrange(sda.n_layers):
         for epoch in xrange(pretraining_epochs):
             c = []
             for batch_index in xrange(n_train_batches):
                 c.append(pretraining_fns[i](index=batch_index,
-                         corruption=corruption_levels[i],
+                         contraction_level=contraction_levels[i],
                          lr=pretrain_lr))
             print 'Pre-training layer %i, epoch %d, cost ' % (i, epoch),
             print numpy.mean(c)
