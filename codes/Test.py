@@ -23,7 +23,6 @@ class DBN(object):
                  hidden_layers_sizes=[500, 500], n_outs=10):
 
         self.sigmoid_layers = []
-        self.sigmoid_layers_prime = []
         self.rbm_layers = []
         self.params = []
         self.n_layers = len(hidden_layers_sizes)
@@ -45,57 +44,27 @@ class DBN(object):
             else:
                 layer_input = self.sigmoid_layers[-1].output
 
+            rbm_layer = RBM(numpy_rng=numpy_rng,
+                                        theano_rng=theano_rng,
+                                        input=layer_input,
+                                        n_visible=input_size,
+                                        n_hidden=hidden_layers_sizes[i])
+            
+            self.rbm_layers.append(rbm_layer)            
+
             sigmoid_layer = HiddenLayer(rng=numpy_rng,
                                         input=layer_input,
                                         n_in=input_size,
                                         n_out=hidden_layers_sizes[i],
-                                        activation=T.nnet.sigmoid)
+                                        activation=T.nnet.sigmoid,
+                                        W=rbm_layer.W,
+                                        b=rbm_layer.hbias)
 
             self.sigmoid_layers.append(sigmoid_layer)
 
             self.params.extend(sigmoid_layer.params)
 
-            rbm_layer = RBM(numpy_rng=numpy_rng,
-                            theano_rng=theano_rng,
-                            input=layer_input,
-                            n_visible=input_size,
-                            n_hidden=hidden_layers_sizes[i],
-                            W=sigmoid_layer.W,
-                            hbias=sigmoid_layer.b)
-            self.rbm_layers.append(rbm_layer)
-
-            #Decoder
-
-            for i in xrange(self.n_layers):
-                print i
-                if i == 0:
-                    input_size = n_ins
-                else:
-                    input_size = hidden_layers_sizes[i - 1]
-    
-                if i == 0:
-                    layer_input = self.x
-                else:
-                    layer_input = self.sigmoid_layers[-1].output
-                    
-                sigmoid_layer = sigmoid_layers[-1-i]
-    
-                sigmoid_layer_prime = HiddenLayer(rng=numpy_rng,
-                                            input=layer_input,
-                                            n_in=#Arrumar,
-                                            n_out=#Arrumar,
-                                            activation=T.nnet.sigmoid)
-    
-                self.sigmoid_layers.append(sigmoid_layer)
-    
-                self.params.extend(sigmoid_layer.params)
-    
-
-
-
-
-
-
+            
 
         self.logLayer = LogisticRegression(
             input=self.sigmoid_layers[-1].output,

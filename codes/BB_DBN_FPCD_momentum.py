@@ -15,7 +15,7 @@ from utils import load_data, tile_raster_images
 from toy_dataset import toy_dataset
 
 from mlp import HiddenLayer
-from BB_rbm_CD import RBM
+from BB_rbm_FPCD import RBM
 
 class DBN(object):
 
@@ -23,7 +23,6 @@ class DBN(object):
                  hidden_layers_sizes=[500, 500], n_outs=10):
 
         self.sigmoid_layers = []
-        self.sigmoid_layers_prime = []
         self.rbm_layers = []
         self.params = []
         self.n_layers = len(hidden_layers_sizes)
@@ -64,39 +63,6 @@ class DBN(object):
                             hbias=sigmoid_layer.b)
             self.rbm_layers.append(rbm_layer)
 
-            #Decoder
-
-            for i in xrange(self.n_layers):
-                print i
-                if i == 0:
-                    input_size = n_ins
-                else:
-                    input_size = hidden_layers_sizes[i - 1]
-    
-                if i == 0:
-                    layer_input = self.x
-                else:
-                    layer_input = self.sigmoid_layers[-1].output
-                    
-                sigmoid_layer = sigmoid_layers[-1-i]
-    
-                sigmoid_layer_prime = HiddenLayer(rng=numpy_rng,
-                                            input=layer_input,
-                                            n_in=#Arrumar,
-                                            n_out=#Arrumar,
-                                            activation=T.nnet.sigmoid)
-    
-                self.sigmoid_layers.append(sigmoid_layer)
-    
-                self.params.extend(sigmoid_layer.params)
-    
-
-
-
-
-
-
-
         self.logLayer = LogisticRegression(
             input=self.sigmoid_layers[-1].output,
             n_in=hidden_layers_sizes[-1],
@@ -118,7 +84,12 @@ class DBN(object):
 
         pretrain_fns = []
         for rbm in self.rbm_layers:
-            cost, updates = rbm.get_cost_updates(learning_rate, k=k)
+            persistent_chain = theano.shared(numpy.zeros((batch_size, rbm.n_hidden),
+                                                         dtype=theano.config.floatX),
+                                             borrow=True)            
+
+            cost, updates = rbm.get_cost_updates(learning_rate, 
+                                                 persistent=persistent_chain, k=k)
 
             fn = theano.function(
                 inputs=[index, theano.Param(learning_rate, default=0.1)],
@@ -132,7 +103,7 @@ class DBN(object):
 
         return pretrain_fns
 
-    def build_finetune_functions(self, datasets, batch_size, learning_rate):
+    def build_finetune_functions(self, datasets, batch_size, learning_rate, momentum):
 
         (train_set_x, train_set_y) = datasets[0]
         (valid_set_x, valid_set_y) = datasets[1]
@@ -148,8 +119,13 @@ class DBN(object):
         gparams = T.grad(self.finetune_cost, self.params)
 
         updates = []
+        #for param, gparam in zip(self.params, gparams):
+            #updates.append((param, param - gparam * learning_rate))
+            
         for param, gparam in zip(self.params, gparams):
-            updates.append((param, param - gparam * learning_rate))
+                param_update = theano.shared(param.get_value()*0., broadcastable=param.broadcastable)#dah erro aki
+                updates.append((param, param - learning_rate*param_update))
+                updates.append((param_update, momentum*param_update + (1. - momentum)*gparam))            
 
         train_fn = theano.function(
             inputs=[index],
@@ -200,9 +176,13 @@ class DBN(object):
         return train_fn, valid_score, test_score
 
 
-def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
-             pretrain_lr=0.01, k=1, training_epochs=1000,
-             dataset='../datasets/mnist.pkl.gz', batch_size=10):
+def test_DBN(finetune_lr=0.1,
+             pretraining_epochs=1,
+             pretrain_lr=0.01, k=1,
+             training_epochs=1000,
+             momentum=0.9,
+             dataset='../datasets/mnist.pkl.gz', 
+             batch_size=10):
     
     datasets = load_data(dataset)
 
@@ -243,7 +223,8 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
     train_fn, validate_model, test_model = dbn.build_finetune_functions(
         datasets=datasets,
         batch_size=batch_size,
-        learning_rate=finetune_lr
+        learning_rate=finetune_lr,
+        momentum=momentum
     )
 
     print '... finetuning the model'
