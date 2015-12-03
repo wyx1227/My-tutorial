@@ -32,7 +32,7 @@ class DBN(object):
             theano_rng = MRG_RandomStreams(numpy_rng.randint(2 ** 30))
 
         self.x = T.matrix('x')  
-        self.y = T.ivector('y')  
+
 
         for i in xrange(self.n_layers):
             if i == 0:
@@ -45,67 +45,61 @@ class DBN(object):
             else:
                 layer_input = self.sigmoid_layers[-1].output
 
+            rbm_layer = RBM(numpy_rng=numpy_rng,
+                                        theano_rng=theano_rng,
+                                        input=layer_input,
+                                        n_visible=input_size,
+                                        n_hidden=hidden_layers_sizes[i])
+            
+            self.rbm_layers.append(rbm_layer)            
+
             sigmoid_layer = HiddenLayer(rng=numpy_rng,
                                         input=layer_input,
                                         n_in=input_size,
                                         n_out=hidden_layers_sizes[i],
-                                        activation=T.nnet.sigmoid)
+                                        activation=T.nnet.sigmoid,
+                                        W=rbm_layer.W,
+                                        b=rbm_layer.hbias)
 
             self.sigmoid_layers.append(sigmoid_layer)
 
             self.params.extend(sigmoid_layer.params)
-
-            rbm_layer = RBM(numpy_rng=numpy_rng,
-                            theano_rng=theano_rng,
-                            input=layer_input,
-                            n_visible=input_size,
-                            n_hidden=hidden_layers_sizes[i],
-                            W=sigmoid_layer.W,
-                            hbias=sigmoid_layer.b)
-            self.rbm_layers.append(rbm_layer)
-
+            
             #Decoder
 
-            for i in xrange(self.n_layers):
-                print i
-                if i == 0:
-                    input_size = n_ins
-                else:
-                    input_size = hidden_layers_sizes[i - 1]
+        for i in xrange(self.n_layers-1,0,-1):
+            if i == 0:
+                output_size = n_ins
+            else:
+                output_size = hidden_layers_sizes[i - 1]
+
+            if i == self.n_layers-1:
+                layer_input = self.sigmoid_layers[-1].output
+            else:
+                layer_input = self.sigmoid_layers_prime[-1].output
+                
+            rbm_layer = self.rbm_layers[i]
+
+            sigmoid_layer_prime = HiddenLayer(rng=numpy_rng,
+                                        input=layer_input,
+                                        n_in=hidden_layers_sizes[i],
+                                        n_out=output_size,
+                                        activation=T.nnet.sigmoid,
+                                        W=rbm_layer.W.T,
+                                        b=rbm_layer.vbias)
+
+            self.sigmoid_layers_prime.append(sigmoid_layer_prime)
+
+            self.params.extend(sigmoid_layer_prime.params)
     
-                if i == 0:
-                    layer_input = self.x
-                else:
-                    layer_input = self.sigmoid_layers[-1].output
-                    
-                sigmoid_layer = sigmoid_layers[-1-i]
-    
-                sigmoid_layer_prime = HiddenLayer(rng=numpy_rng,
-                                            input=layer_input,
-                                            n_in=#Arrumar,
-                                            n_out=#Arrumar,
-                                            activation=T.nnet.sigmoid)
-    
-                self.sigmoid_layers.append(sigmoid_layer)
-    
-                self.params.extend(sigmoid_layer.params)
-    
+        self.finetune_cost = self.get_reconstruction_cost(self.x)
 
+    def get_reconstruction_cost(self, x):
+        reconstructed = self.sigmoid_layers_prime[-1].output        
+        L = - T.sum(self.x * T.log(reconstructed) + (1 - self.x) * T.log(1 - reconstructed), axis=1)
+        cost = T.mean(L)
+        return cost
 
-
-
-
-
-
-        self.logLayer = LogisticRegression(
-            input=self.sigmoid_layers[-1].output,
-            n_in=hidden_layers_sizes[-1],
-            n_out=n_outs)
-        self.params.extend(self.logLayer.params)
-
-        self.finetune_cost = self.logLayer.negative_log_likelihood(self.y)
-
-        self.errors = self.logLayer.errors(self.y)
 
     def pretraining_functions(self, train_set_x, batch_size, k):
 
@@ -158,21 +152,15 @@ class DBN(object):
             givens={
                 self.x: train_set_x[
                     index * batch_size: (index + 1) * batch_size
-                ],
-                self.y: train_set_y[
-                    index * batch_size: (index + 1) * batch_size
                 ]
             }
         )
 
         test_score_i = theano.function(
             [index],
-            self.errors,
+            outputs=self.finetune_cost,
             givens={
                 self.x: test_set_x[
-                    index * batch_size: (index + 1) * batch_size
-                ],
-                self.y: test_set_y[
                     index * batch_size: (index + 1) * batch_size
                 ]
             }
@@ -180,12 +168,9 @@ class DBN(object):
 
         valid_score_i = theano.function(
             [index],
-            self.errors,
+            outputs=self.finetune_cost,
             givens={
                 self.x: valid_set_x[
-                    index * batch_size: (index + 1) * batch_size
-                ],
-                self.y: valid_set_y[
                     index * batch_size: (index + 1) * batch_size
                 ]
             }
@@ -200,8 +185,8 @@ class DBN(object):
         return train_fn, valid_score, test_score
 
 
-def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
-             pretrain_lr=0.01, k=1, training_epochs=1000,
+def test_DBN(finetune_lr=0.1, pretraining_epochs=10,
+             pretrain_lr=0.01, k=1, training_epochs=100,
              dataset='../datasets/mnist.pkl.gz', batch_size=10):
     
     datasets = load_data(dataset)
@@ -215,7 +200,7 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
     numpy_rng = numpy.random.RandomState(123)
     print '... building the model'
     dbn = DBN(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[1000, 1000, 1000],
+              hidden_layers_sizes=[800, 400, 20],
               n_outs=10)
 
     print '... getting the pretraining functions'
