@@ -67,7 +67,7 @@ class DBN(object):
             
             #Decoder
 
-        for i in xrange(self.n_layers-1,0,-1):
+        for i in xrange(self.n_layers-1,-1,-1):
             if i == 0:
                 output_size = n_ins
             else:
@@ -89,8 +89,9 @@ class DBN(object):
                                         b=rbm_layer.vbias)
 
             self.sigmoid_layers_prime.append(sigmoid_layer_prime)
+            
+            self.params.extend([sigmoid_layer_prime.b])
 
-            self.params.extend(sigmoid_layer_prime.params)
     
         self.finetune_cost = self.get_reconstruction_cost(self.x)
 
@@ -185,7 +186,7 @@ class DBN(object):
         return train_fn, valid_score, test_score
 
 
-def test_DBN(finetune_lr=0.1, pretraining_epochs=10,
+def test_DBN(finetune_lr=0.1, pretraining_epochs=1,
              pretrain_lr=0.01, k=1, training_epochs=100,
              dataset='../datasets/mnist.pkl.gz', batch_size=10):
     
