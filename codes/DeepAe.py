@@ -20,7 +20,7 @@ from BB_rbm_CD import RBM
 class DBN(object):
 
     def __init__(self, numpy_rng, theano_rng=None, n_ins=784,
-                 hidden_layers_sizes=[500, 500], n_outs=10):
+                 hidden_layers_sizes=[500, 500]):
 
         self.sigmoid_layers = []
         self.sigmoid_layers_prime = []
@@ -92,7 +92,6 @@ class DBN(object):
             
             self.params.extend([sigmoid_layer_prime.b])
 
-    
         self.finetune_cost = self.get_reconstruction_cost(self.x)
 
     def get_reconstruction_cost(self, x):
@@ -186,8 +185,8 @@ class DBN(object):
         return train_fn, valid_score, test_score
 
 
-def test_DBN(finetune_lr=0.1, pretraining_epochs=1,
-             pretrain_lr=0.01, k=1, training_epochs=100,
+def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
+             pretrain_lr=0.01, k=1, training_epochs=10,
              dataset='../datasets/mnist.pkl.gz', batch_size=10):
     
     datasets = load_data(dataset)
@@ -199,10 +198,10 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=1,
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
     numpy_rng = numpy.random.RandomState(123)
+    
     print '... building the model'
     dbn = DBN(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[800, 400, 20],
-              n_outs=10)
+              hidden_layers_sizes=[800, 400])
 
     print '... getting the pretraining functions'
     pretraining_fns = dbn.pretraining_functions(train_set_x=train_set_x,
@@ -300,6 +299,30 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=1,
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time)
                                               / 60.))
+    
+    
+    #recontruct_train = theano.function(
+        #[index],
+        #outputs=self.sigmoid_layers_prime[-1].output,
+        #givens={
+            #self.x: test_set_x[index]
+        #}
+    #)
+    
+    recontruct_test = theano.function(
+        [index],
+        outputs=self.sigmoid_layers_prime[-1].output,
+        givens={
+            self.x: test_set_x[100]
+        }
+    )
+    
+    
+    #image = Image.fromarray(tile_raster_images(
+        #X=da.W.get_value(borrow=True).T,
+        #img_shape=(28, 28), tile_shape=(10, 10),
+        #tile_spacing=(1, 1)))
+    #image.save('filters_corruption_30.png')
 
 
 if __name__ == '__main__':
