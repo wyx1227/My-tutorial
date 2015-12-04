@@ -1,3 +1,8 @@
+try:
+    import PIL.Image as Image
+except ImportError:
+    import Image
+
 import os
 import sys
 import timeit
@@ -128,9 +133,9 @@ class DBN(object):
 
     def build_finetune_functions(self, datasets, batch_size, learning_rate):
 
-        (train_set_x, train_set_y) = datasets[0]
-        (valid_set_x, valid_set_y) = datasets[1]
-        (test_set_x, test_set_y) = datasets[2]
+        (train_set_x, _) = datasets[0]
+        (valid_set_x, _) = datasets[1]
+        (test_set_x, _) = datasets[2]
 
         n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]
         n_valid_batches /= batch_size
@@ -185,10 +190,184 @@ class DBN(object):
         return train_fn, valid_score, test_score
 
 
+        
+        
+def test_toy(finetune_lr=0.1,
+             pretraining_epochs=3,
+             pretrain_lr=0.01,
+             k=1,
+             training_epochs=10,
+             dataset='../datasets/mnist.pkl.gz',
+             batch_size=10):
+   
+    print 'Creating dataset...'
+    train_set_x = toy_dataset(p=0.001, size=20000, seed=238904)
+    valid_set_x = toy_dataset(p=0.001, size=5000, seed=238905)
+    test_set_x = toy_dataset(p=0.001, size=5000, seed=238906)
+    train_set_x = numpy.asarray(train_set_x, dtype=theano.config.floatX)
+    valid_set_x = numpy.asarray(valid_set_x, dtype=theano.config.floatX)
+    test_set_x = numpy.asarray(test_set_x, dtype=theano.config.floatX)
+    numpy.random.shuffle(train_set_x)
+    numpy.random.shuffle(valid_set_x)
+    numpy.random.shuffle(test_set_x)
+    train_set_x = theano.shared(train_set_x)
+    valid_set_x = theano.shared(valid_set_x)   
+    test_set_x = theano.shared(test_set_x)    
+    
+    datasets=[]
+    datasets.append((train_set_x, None))
+    datasets.append((valid_set_x, None))
+    datasets.append((test_set_x, None))
+    
+    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    
+    numpy_rng = numpy.random.RandomState(123)
+    
+    print '... building the model'
+    dbn = DBN(numpy_rng=numpy_rng, n_ins=4 * 4,
+              hidden_layers_sizes=[25, 10])
+    
+    print '... getting the pretraining functions'
+    pretraining_fns = dbn.pretraining_functions(train_set_x=train_set_x,
+                                                batch_size=batch_size,
+                                                k=k)
+    
+    print '... pre-training the model'
+    start_time = timeit.default_timer()
+    for i in xrange(dbn.n_layers):
+        for epoch in xrange(pretraining_epochs):
+            c = []
+            for batch_index in xrange(n_train_batches):
+                c.append(pretraining_fns[i](index=batch_index,
+                                            lr=pretrain_lr))
+            print 'Pre-training layer %i, epoch %d, cost ' % (i, epoch),
+            print numpy.mean(c)
+    
+    end_time = timeit.default_timer()
+    print >> sys.stderr, ('The pretraining code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
+    
+    print '... getting the finetuning functions'
+    train_fn, validate_model, test_model = dbn.build_finetune_functions(
+        datasets=datasets,
+        batch_size=batch_size,
+        learning_rate=finetune_lr
+    )
+    
+    print '... finetuning the model'
+    patience = 4 * n_train_batches  
+    patience_increase = 2.    
+    improvement_threshold = 0.995  
+    validation_frequency = min(n_train_batches, patience / 2)
+    
+    best_validation_loss = numpy.inf
+    test_score = 0.
+    start_time = timeit.default_timer()
+    
+    done_looping = False
+    epoch = 0
+    
+    while (epoch < training_epochs) and (not done_looping):
+        epoch = epoch + 1
+        for minibatch_index in xrange(n_train_batches):
+    
+            minibatch_avg_cost = train_fn(minibatch_index)
+            iter = (epoch - 1) * n_train_batches + minibatch_index
+    
+            if (iter + 1) % validation_frequency == 0:
+    
+                validation_losses = validate_model()
+                this_validation_loss = numpy.mean(validation_losses)
+                print(
+                    'epoch %i, minibatch %i/%i, validation error %f %%'
+                    % (
+                        epoch,
+                        minibatch_index + 1,
+                        n_train_batches,
+                        this_validation_loss * 100.
+                    )
+                )
+    
+                if this_validation_loss < best_validation_loss:
+    
+                    if (
+                        this_validation_loss < best_validation_loss *
+                        improvement_threshold
+                    ):
+                        patience = max(patience, iter * patience_increase)
+    
+                    best_validation_loss = this_validation_loss
+                    best_iter = iter
+    
+                    test_losses = test_model()
+                    test_score = numpy.mean(test_losses)
+                    print(('     epoch %i, minibatch %i/%i, test error of '
+                           'best model %f %%') %
+                          (epoch, minibatch_index + 1, n_train_batches,
+                           test_score * 100.))
+    
+            if patience <= iter:
+                done_looping = True
+                break
+    
+    end_time = timeit.default_timer()
+    print(
+        (
+            'Optimization complete with best validation score of %f %%, '
+            'obtained at iteration %i, '
+            'with test performance %f %%'
+        ) % (best_validation_loss * 100., best_iter + 1, test_score * 100.)
+    )
+    print >> sys.stderr, ('The fine tuning code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time)
+                                              / 60.))
+    #------------------------------------------------------------------
+        
+    recontruct_train_fn = theano.function(
+        inputs=[],
+        outputs=dbn.sigmoid_layers_prime[-1].output,
+        givens={
+                dbn.x: test_set_x[100 : 120]
+        }            
+    )           
+    
+    recontruct_test_fn = theano.function(
+        inputs=[],
+        outputs=dbn.sigmoid_layers_prime[-1].output,
+        givens={
+            dbn.x: test_set_x[100 : 120]
+        }            
+    )
+    
+    
+    recontruct_test_fn
+    recontruct_train_fn 
+    
+    
+    image = Image.fromarray(tile_raster_images(
+        X=recontruct_test_fn(),
+        img_shape=(4, 4), tile_shape=(10, 10),
+        tile_spacing=(1, 1)))
+    image.save('reconstructed_test.png')
 
-def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
-             pretrain_lr=0.01, k=1, training_epochs=10,
-             dataset='../datasets/mnist.pkl.gz', batch_size=10):
+
+
+
+
+
+
+
+
+
+def test_mnist(finetune_lr=0.1,
+             pretraining_epochs=3,
+             pretrain_lr=0.01,
+             k=1,
+             training_epochs=10,
+             dataset='../datasets/mnist.pkl.gz',
+             batch_size=10):
     
     datasets = load_data(dataset)
 
@@ -331,4 +510,5 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
 
 
 if __name__ == '__main__':
-    test_DBN()
+    #test_mnist()
+    test_toy()
