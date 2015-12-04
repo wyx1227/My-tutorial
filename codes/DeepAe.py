@@ -306,7 +306,7 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
         input=[],
         outputs=dbn.sigmoid_layers_prime[-1].output,
         givens={
-                self.x: test_set_x[100 : 120]
+                dbn.x: test_set_x[100 : 120]
         }            
     )           
     
