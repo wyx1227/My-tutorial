@@ -6,7 +6,8 @@ import numpy
 
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams
+
+from theano.tensor.shared_randomstreams import RandomStreams
 
 from logistic_sgd import LogisticRegression
 
@@ -19,16 +20,23 @@ from BB_rbm_CD import RBM
 
 class DBN(object):
 
-    def __init__(self, numpy_rng, theano_rng=None, n_ins=784,
-                 hidden_layers_sizes=[500, 500], n_outs=10):
-
+    def __init__(self,
+                 n_ins=784,
+                 hidden_layers_sizes=[500, 500],
+                 n_outs=10,
+                 numpy_rng=None,
+                 theano_rng=None):
+        
         self.sigmoid_layers = []
         self.rbm_layers = []
         self.params = []
         self.n_layers = len(hidden_layers_sizes)
 
-        if not theano_rng:
-            theano_rng = MRG_RandomStreams(numpy_rng.randint(2 ** 30))
+        if numpy_rng is None:
+            numpy_rng = numpy.random.RandomState(1234)
+
+        if theano_rng is None:
+            theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
 
         self.x = T.matrix('x')  
         self.y = T.ivector('y')  
@@ -166,9 +174,70 @@ class DBN(object):
         return train_fn, valid_score, test_score
 
 
-def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
-             pretrain_lr=0.01, k=1, training_epochs=1000,
-             dataset='../datasets/mnist.pkl.gz', batch_size=10):
+def test_toy(finetune_lr=0.1,
+             pretraining_epochs=10,
+             pretrain_lr=0.01,
+             k=1,
+             training_epochs=100,
+             dataset='../datasets/mnist.pkl.gz',
+             batch_size=10):
+   
+    print 'Creating dataset...'
+    train_set_x = toy_dataset(p=0.001, size=10000, seed=238904)
+    valid_set_x = toy_dataset(p=0.001, size=10000, seed=238905)
+    test_set_x = toy_dataset(p=0.001, size=10000, seed=238906)
+    train_set_x = numpy.asarray(train_set_x, dtype=theano.config.floatX)
+    valid_set_x = numpy.asarray(valid_set_x, dtype=theano.config.floatX)
+    test_set_x = numpy.asarray(test_set_x, dtype=theano.config.floatX)
+    numpy.random.shuffle(train_set_x)
+    numpy.random.shuffle(valid_set_x)
+    numpy.random.shuffle(test_set_x)
+    train_set_x = theano.shared(train_set_x)
+    valid_set_x = theano.shared(valid_set_x)   
+    test_set_x = theano.shared(test_set_x)    
+                
+    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+
+    rng = numpy.random.RandomState(123)
+    theano_rng = RandomStreams(rng.randint(2 ** 30))
+    
+    print '... building the model'
+    dbn = DBN(numpy_rng=rng,
+              theano_rng=theano_rng,
+              n_ins=4 * 4,
+              hidden_layers_sizes=[100, 50, 50],
+              n_outs=10)
+
+    print '... getting the pretraining functions'
+    pretraining_fns = dbn.pretraining_functions(train_set_x=train_set_x,
+                                                batch_size=batch_size,
+                                                k=k)
+
+    print '... pre-training the model'
+    start_time = timeit.default_timer()
+    for i in xrange(dbn.n_layers):
+        for epoch in xrange(pretraining_epochs):
+            c = []
+            for batch_index in xrange(n_train_batches):
+                c.append(pretraining_fns[i](index=batch_index,
+                                            lr=pretrain_lr))
+            print 'Pre-training layer %i, epoch %d, cost ' % (i, epoch),
+            print numpy.mean(c)
+
+    end_time = timeit.default_timer()
+    print >> sys.stderr, ('The pretraining code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
+
+
+
+def test_mnist(finetune_lr=0.1,
+             pretraining_epochs=100,
+             pretrain_lr=0.01,
+             k=1,
+             training_epochs=1000,
+             dataset='../datasets/mnist.pkl.gz',
+             batch_size=10):
     
     datasets = load_data(dataset)
 
@@ -283,4 +352,6 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=100,
 
 
 if __name__ == '__main__':
-    test_DBN()
+    test_toy()
+    test_mnist()
+

@@ -158,10 +158,14 @@ class RBM(object):
         return cross_entropy
 
 
-def test_toy(learning_rate=0.1, training_epochs=15, 
-             n_chains=20, n_samples=10, batch_size=20, 
+def test_toy(learning_rate=0.1,
+             training_epochs=15, 
+             n_chains=20,
+             n_samples=10,
+             batch_size=20, 
              output_folder='toy_rbm_CD_plots',
              n_hidden=30):
+    
     print 'Creating dataset...'
     train_set_x = toy_dataset(p=0.001, size=10000, seed=238904)
     test_set_x = toy_dataset(p=0.001, size=10000, seed=238905)
