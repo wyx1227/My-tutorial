@@ -6,7 +6,8 @@ import numpy
 
 import theano
 import theano.tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams
+
+from theano.tensor.shared_randomstreams import RandomStreams
 
 from logistic_sgd import LogisticRegression
 
@@ -19,20 +20,26 @@ from BB_rbm_CD import RBM
 
 class DBN(object):
 
-    def __init__(self, numpy_rng, theano_rng=None, n_ins=784,
-                 hidden_layers_sizes=[500, 500]):
-
+    def __init__(self,
+                 n_ins=784,
+                 hidden_layers_sizes=[500, 500],
+                 n_outs=10,
+                 numpy_rng=None,
+                 theano_rng=None):
+        
         self.sigmoid_layers = []
-        self.sigmoid_layers_prime = []
         self.rbm_layers = []
         self.params = []
         self.n_layers = len(hidden_layers_sizes)
 
-        if not theano_rng:
-            theano_rng = MRG_RandomStreams(numpy_rng.randint(2 ** 30))
+        if numpy_rng is None:
+            numpy_rng = numpy.random.RandomState(1234)
+
+        if theano_rng is None:
+            theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
 
         self.x = T.matrix('x')  
-
+        self.y = T.ivector('y')  
 
         for i in xrange(self.n_layers):
             if i == 0:
@@ -45,61 +52,34 @@ class DBN(object):
             else:
                 layer_input = self.sigmoid_layers[-1].output
 
-            rbm_layer = RBM(numpy_rng=numpy_rng,
-                                        theano_rng=theano_rng,
-                                        input=layer_input,
-                                        n_visible=input_size,
-                                        n_hidden=hidden_layers_sizes[i])
-            
-            self.rbm_layers.append(rbm_layer)            
-
             sigmoid_layer = HiddenLayer(rng=numpy_rng,
                                         input=layer_input,
                                         n_in=input_size,
                                         n_out=hidden_layers_sizes[i],
-                                        activation=T.nnet.sigmoid,
-                                        W=rbm_layer.W,
-                                        b=rbm_layer.hbias)
+                                        activation=T.nnet.sigmoid)
 
             self.sigmoid_layers.append(sigmoid_layer)
 
             self.params.extend(sigmoid_layer.params)
-            
-            #Decoder
 
-        for i in xrange(self.n_layers-1,-1,-1):
-            if i == 0:
-                output_size = n_ins
-            else:
-                output_size = hidden_layers_sizes[i - 1]
+            rbm_layer = RBM(numpy_rng=numpy_rng,
+                            theano_rng=theano_rng,
+                            input=layer_input,
+                            n_visible=input_size,
+                            n_hidden=hidden_layers_sizes[i],
+                            W=sigmoid_layer.W,
+                            hbias=sigmoid_layer.b)
+            self.rbm_layers.append(rbm_layer)
 
-            if i == self.n_layers-1:
-                layer_input = self.sigmoid_layers[-1].output
-            else:
-                layer_input = self.sigmoid_layers_prime[-1].output
-                
-            rbm_layer = self.rbm_layers[i]
+        self.logLayer = LogisticRegression(
+            input=self.sigmoid_layers[-1].output,
+            n_in=hidden_layers_sizes[-1],
+            n_out=n_outs)
+        self.params.extend(self.logLayer.params)
 
-            sigmoid_layer_prime = HiddenLayer(rng=numpy_rng,
-                                        input=layer_input,
-                                        n_in=hidden_layers_sizes[i],
-                                        n_out=output_size,
-                                        activation=T.nnet.sigmoid,
-                                        W=rbm_layer.W.T,
-                                        b=rbm_layer.vbias)
+        self.finetune_cost = self.logLayer.negative_log_likelihood(self.y)
 
-            self.sigmoid_layers_prime.append(sigmoid_layer_prime)
-            
-            self.params.extend([sigmoid_layer_prime.b])
-
-        self.finetune_cost = self.get_reconstruction_cost(self.x)
-
-    def get_reconstruction_cost(self, x):
-        reconstructed = self.sigmoid_layers_prime[-1].output        
-        L = - T.sum(self.x * T.log(reconstructed) + (1 - self.x) * T.log(1 - reconstructed), axis=1)
-        cost = T.mean(L)
-        return cost
-
+        self.errors = self.logLayer.errors(self.y)
 
     def pretraining_functions(self, train_set_x, batch_size, k):
 
@@ -152,15 +132,21 @@ class DBN(object):
             givens={
                 self.x: train_set_x[
                     index * batch_size: (index + 1) * batch_size
+                ],
+                self.y: train_set_y[
+                    index * batch_size: (index + 1) * batch_size
                 ]
             }
         )
 
         test_score_i = theano.function(
             [index],
-            outputs=self.finetune_cost,
+            self.errors,
             givens={
                 self.x: test_set_x[
+                    index * batch_size: (index + 1) * batch_size
+                ],
+                self.y: test_set_y[
                     index * batch_size: (index + 1) * batch_size
                 ]
             }
@@ -168,9 +154,12 @@ class DBN(object):
 
         valid_score_i = theano.function(
             [index],
-            outputs=self.finetune_cost,
+            self.errors,
             givens={
                 self.x: valid_set_x[
+                    index * batch_size: (index + 1) * batch_size
+                ],
+                self.y: valid_set_y[
                     index * batch_size: (index + 1) * batch_size
                 ]
             }
@@ -185,10 +174,70 @@ class DBN(object):
         return train_fn, valid_score, test_score
 
 
+def test_toy(finetune_lr=0.1,
+             pretraining_epochs=10,
+             pretrain_lr=0.01,
+             k=1,
+             training_epochs=100,
+             dataset='../datasets/mnist.pkl.gz',
+             batch_size=10):
+   
+    print 'Creating dataset...'
+    train_set_x = toy_dataset(p=0.001, size=10000, seed=238904)
+    valid_set_x = toy_dataset(p=0.001, size=10000, seed=238905)
+    test_set_x = toy_dataset(p=0.001, size=10000, seed=238906)
+    train_set_x = numpy.asarray(train_set_x, dtype=theano.config.floatX)
+    valid_set_x = numpy.asarray(valid_set_x, dtype=theano.config.floatX)
+    test_set_x = numpy.asarray(test_set_x, dtype=theano.config.floatX)
+    numpy.random.shuffle(train_set_x)
+    numpy.random.shuffle(valid_set_x)
+    numpy.random.shuffle(test_set_x)
+    train_set_x = theano.shared(train_set_x)
+    valid_set_x = theano.shared(valid_set_x)   
+    test_set_x = theano.shared(test_set_x)    
+                
+    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
-def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
-             pretrain_lr=0.01, k=1, training_epochs=10,
-             dataset='../datasets/mnist.pkl.gz', batch_size=10):
+    rng = numpy.random.RandomState(123)
+    theano_rng = RandomStreams(rng.randint(2 ** 30))
+    
+    print '... building the model'
+    dbn = DBN(numpy_rng=rng,
+              theano_rng=theano_rng,
+              n_ins=4 * 4,
+              hidden_layers_sizes=[100, 50, 50],
+              n_outs=10)
+
+    print '... getting the pretraining functions'
+    pretraining_fns = dbn.pretraining_functions(train_set_x=train_set_x,
+                                                batch_size=batch_size,
+                                                k=k)
+
+    print '... pre-training the model'
+    start_time = timeit.default_timer()
+    for i in xrange(dbn.n_layers):
+        for epoch in xrange(pretraining_epochs):
+            c = []
+            for batch_index in xrange(n_train_batches):
+                c.append(pretraining_fns[i](index=batch_index,
+                                            lr=pretrain_lr))
+            print 'Pre-training layer %i, epoch %d, cost ' % (i, epoch),
+            print numpy.mean(c)
+
+    end_time = timeit.default_timer()
+    print >> sys.stderr, ('The pretraining code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))
+
+
+
+def test_mnist(finetune_lr=0.1,
+             pretraining_epochs=100,
+             pretrain_lr=0.01,
+             k=1,
+             training_epochs=1000,
+             dataset='../datasets/mnist.pkl.gz',
+             batch_size=10):
     
     datasets = load_data(dataset)
 
@@ -199,10 +248,10 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
     numpy_rng = numpy.random.RandomState(123)
-    
     print '... building the model'
     dbn = DBN(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[800, 400])
+              hidden_layers_sizes=[1000, 1000, 1000],
+              n_outs=10)
 
     print '... getting the pretraining functions'
     pretraining_fns = dbn.pretraining_functions(train_set_x=train_set_x,
@@ -300,35 +349,78 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time)
                                               / 60.))
-    #------------------------------------------------------------------
-        
-    recontruct_train_fn = theano.function(
-        input=[],
-        outputs=dbn.sigmoid_layers_prime[-1].output,
-        givens={
-                self.x: test_set_x[100 : 120]
-        }            
-    )           
-    
-    recontruct_test_fn = theano.function(
-        input=[],
-        outputs=dbn.sigmoid_layers_prime[-1].output,
-        givens={
-            dbn.x: test_set_x[100 : 120]
-        }            
-    )
-   
-    
-    recontruct_test_fn
-    recontruct_train_fn 
-    
 
-    image = Image.fromarray(tile_raster_images(
-        X=recontruct_test_fn(),
-        img_shape=(28, 28), tile_shape=(10, 10),
-        tile_spacing=(1, 1)))
-    image.save('reconstructed_test.png')
+# ploting
+
+    image = Image.fromarray(
+                tile_raster_images(
+                    X=rbm.W.get_value(borrow=True).T,
+                    img_shape=(4, 4),
+                    tile_shape=(10, 10),
+                    tile_spacing=(1, 1)
+                )
+            )
+    image.save('filters_at_epoch_%i.png' % epoch)    
+
+
+def sample_DBN():
+    persistent_vis_chain = theano.shared(
+        numpy.asarray(
+            test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
+            dtype=theano.config.floatX
+        )
+    )
+    
+    plot_every = 1000
+    (
+        [
+            presig_hids,
+            hid_mfs,
+            hid_samples,
+            presig_vis,
+            vis_mfs,
+            vis_samples
+        ],
+        updates
+    ) = theano.scan(
+        rbm.gibbs_vhv,
+        outputs_info=[None, None, None, None, None, persistent_vis_chain],
+        n_steps=plot_every
+    )
+
+    updates.update({persistent_vis_chain: vis_samples[-1]})
+    sample_fn = theano.function(
+        [],
+        [
+            vis_mfs[-1],
+            vis_samples[-1]
+        ],
+        updates=updates,
+        name='sample_fn'
+    )    
+
+    image_data = numpy.zeros(
+        (5 * n_samples + 1, 5 * n_chains - 1),
+        dtype='uint8'
+    )
+    for idx in xrange(n_samples):
+
+        vis_mf, vis_sample = sample_fn()
+        print ' ... plotting sample ', idx
+        image_data[5 * idx:5 * idx + 4, :] = tile_raster_images(
+            X=vis_mf,
+            img_shape=(4, 4),
+            tile_shape=(1, n_chains),
+            tile_spacing=(1, 1)
+        )
+
+    image = Image.fromarray(image_data)
+    image.save('samples.png')
+    os.chdir('../')             
+                 
 
 
 if __name__ == '__main__':
-    test_DBN()
+    test_toy()
+    test_mnist()
+

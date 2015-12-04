@@ -72,6 +72,14 @@ class RBM(object):
         self.params = [self.W, self.hbias, self.vbias]
 
         self.n_beta  = theano.shared(n_beta, name='n_beta')
+        
+        
+        #persistent_vis_chain = theano.shared(
+            #numpy.asarray(
+                #test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
+                #dtype=theano.config.floatX
+            #)
+        #)        
 
 
     def energy(self, v_sample, h_sample):

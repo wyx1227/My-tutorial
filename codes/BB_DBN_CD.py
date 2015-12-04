@@ -350,6 +350,9 @@ def test_mnist(finetune_lr=0.1,
                           ' ran for %.2fm' % ((end_time - start_time)
                                               / 60.))
 
+    
+
+
 
 if __name__ == '__main__':
     test_toy()

@@ -67,11 +67,11 @@ class RBM(object):
         self.W = W
 
         if hbias is None :
-           hbias = sharedX(numpy.zeros(n_hidden), 'hbias')
+            hbias = sharedX(numpy.zeros(n_hidden), 'hbias')
         self.hbias = hbias
 
         if vbias is None :
-           vbias = sharedX(numpy.zeros(n_visible), 'vbias')
+            vbias = sharedX(numpy.zeros(n_visible), 'vbias')
         self.vbias = vbias
 
         if input is None:
