@@ -310,19 +310,15 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
     #)
     
     recontruct_test = theano.function(
-        [index],
+        [x],
         outputs=self.sigmoid_layers_prime[-1].output,
-        givens={
-            self.x: test_set_x[100]
-        }
     )
-    
-    
-    #image = Image.fromarray(tile_raster_images(
-        #X=da.W.get_value(borrow=True).T,
-        #img_shape=(28, 28), tile_shape=(10, 10),
-        #tile_spacing=(1, 1)))
-    #image.save('filters_corruption_30.png')
+
+    image = Image.fromarray(tile_raster_images(
+        X=reconstruct_test(x=test_set_x[100]),
+        img_shape=(28, 28), tile_shape=(10, 10),
+        tile_spacing=(1, 1)))
+    image.save('reconstructed.png')
 
 
 if __name__ == '__main__':
