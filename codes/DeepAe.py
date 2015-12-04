@@ -303,7 +303,7 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
     #------------------------------------------------------------------
         
     recontruct_train_fn = theano.function(
-        input=[],
+        inputs=[],
         outputs=dbn.sigmoid_layers_prime[-1].output,
         givens={
                 dbn.x: test_set_x[100 : 120]
@@ -311,7 +311,7 @@ def test_DBN(finetune_lr=0.1, pretraining_epochs=3,
     )           
     
     recontruct_test_fn = theano.function(
-        input=[],
+        inputs=[],
         outputs=dbn.sigmoid_layers_prime[-1].output,
         givens={
             dbn.x: test_set_x[100 : 120]
