@@ -85,26 +85,23 @@ class MLP(object):
 
         index = T.lscalar('index') 
 
-
         gparams = T.grad(self.finetune_cost, self.params)
-        accumulators=[]
-        for p in self.params:
-            a = numpy.zeros(p.get_value().shape, dtype=theano.config.floatX)
-            accumulators.append(theano.shared(value=a, borrow=True))
         
         updates = []
-        for p, g, a in zip(self.params, gparams, accumulators):
+        for param, grad in zip(self.params, gparams):
+            value = param.get_value(borrow=True)
+            accu = theano.shared(numpy.zeros(value.shape, dtype=theano.config.floatX))   
+            
             # update accumulator
-            new_a = a + T.sqr(g)
-            updates.append((a, new_a))
+            accu_new = accu + T.sqr(grad)
+            updates.append((accu, accu_new))
     
             # use the new accumulator and the *old* delta_accumulator
-            update = g / T.sqrt(new_a + epsilon)
+            update = grad / T.sqrt(accu_new + epsilon)
     
-            new_p = p - learning_rate * update
-            updates.append((p, new_p))  # apply constraints
+            param_new = param - learning_rate * update
+            updates.append((param, param_new))  # apply constraints
     
-
 
         train_fn = theano.function(
             inputs=[index],
@@ -156,12 +153,10 @@ class MLP(object):
 
 
 def test_mnist(finetune_lr=0.1,
-             pretraining_epochs=10,
-             pretrain_lr=0.01,
-             k=1,
              training_epochs=50,
              dataset='../datasets/mnist.pkl.gz',
-             batch_size=10):
+             batch_size=10,
+             epsilon=1e-6):
     
     datasets = load_data(dataset)
 
@@ -172,16 +167,21 @@ def test_mnist(finetune_lr=0.1,
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
     numpy_rng = numpy.random.RandomState(123)
+    theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
+    
     print '... building the model'
-    mlp = MLP(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[1000, 500],
+    mlp = MLP(numpy_rng=numpy_rng,
+              theano_rng=theano_rng,
+              n_ins=28 * 28,
+              hidden_layers_sizes=[1000],
               n_outs=10)
 
     print '... getting the finetuning functions'
     train_fn, validate_model, test_model = mlp.build_finetune_functions(
         datasets=datasets,
         batch_size=batch_size,
-        learning_rate=finetune_lr
+        learning_rate=finetune_lr,
+        epsilon=epsilon
     )
 
     print '... finetuning the model'

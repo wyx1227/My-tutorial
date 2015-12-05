@@ -86,41 +86,27 @@ class MLP(object):
         index = T.lscalar('index') 
 
 
-        gparams = T.grad(self.finetune_cost, self.params)
-        accumulators=[]
-        delta_accumulators=[]
-        for p in self.params:
-            a = numpy.zeros(p.get_value().shape,dtype=theano.config.floatX)
-            d_a = numpy.zeros(p.get_value().shape,dtype=theano.config.floatX)
-            accumulators.append(theano.shared(value=a, borrow=True))
-            delta_accumulators.append(theano.shared(value=d_a, borrow=True))
+        gparams = T.grad(self.finetune_cost, self.params)            
         
         updates = []
-        for p, g, a, d_a in zip(self.params, gparams, accumulators,
-                                   delta_accumulators):
+        for param, grad in zip(self.params, gparams):
+            value = param.get_value(borrow=True)
+            accu = theano.shared(numpy.zeros(value.shape, dtype=theano.config.floatX))
+            delta_accu = theano.shared(numpy.zeros(value.shape, dtype=theano.config.floatX))
+            
             # update accumulator
-            new_a = rho * a + (1 - rho) * T.sqr(g)
-            updates.append((a, new_a))
+            accu_new = rho * accu + (1 - rho) * T.sqr(grad)
+            updates.append((accu, accu_new))
     
             # use the new accumulator and the *old* delta_accumulator
-            update = g * T.sqrt(d_a + epsilon) / T.sqrt(new_a + epsilon)
+            update = grad * T.sqrt(delta_accu + epsilon) / T.sqrt(accu_new + epsilon)
     
-            new_p = p - learning_rate * update
-            updates.append((p, new_p))  # apply constraints
+            param_new = param - learning_rate * update
+            updates.append((param, param_new))  # apply constraints
     
             # update delta_accumulator
-            new_d_a = rho * d_a + (1 - rho) * T.sqr(update)
-            updates.append((d_a, new_d_a))
-
-
-            
-            #GET UPDATES from KERAS
-            #'''
-                #Reference: http://arxiv.org/abs/1212.5701
-            #'''
-            #def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
-    
-
+            delta_accu_new = rho * delta_accu + (1 - rho) * T.sqr(update)
+            updates.append((delta_accu, delta_accu_new))
 
         train_fn = theano.function(
             inputs=[index],
@@ -172,12 +158,11 @@ class MLP(object):
 
 
 def test_mnist(finetune_lr=0.1,
-             pretraining_epochs=10,
-             pretrain_lr=0.01,
-             k=1,
              training_epochs=50,
              dataset='../datasets/mnist.pkl.gz',
-             batch_size=10):
+             batch_size=10,
+             rho=0.95,
+             epsilon=1e-6):
     
     datasets = load_data(dataset)
 
@@ -188,16 +173,22 @@ def test_mnist(finetune_lr=0.1,
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
     numpy_rng = numpy.random.RandomState(123)
+    theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))  
+    
     print '... building the model'
-    mlp = MLP(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[1000, 500],
+    mlp = MLP(numpy_rng=numpy_rng,
+              theano_rng=theano_rng,
+              n_ins=28 * 28,
+              hidden_layers_sizes=[1000],
               n_outs=10)
 
     print '... getting the finetuning functions'
     train_fn, validate_model, test_model = mlp.build_finetune_functions(
         datasets=datasets,
         batch_size=batch_size,
-        learning_rate=finetune_lr
+        learning_rate=finetune_lr,
+        rho=rho,
+        epsilon=epsilon
     )
 
     print '... finetuning the model'

@@ -89,19 +89,18 @@ class MLP(object):
         gparams = T.grad(self.finetune_cost, self.params)
         
         updates = []
-        for p, g in zip(self.params, gparams):
-                        
-            # zero init of moment            
-            m = theano.shared(value=numpy.zeros(p.get_value().shape, dtype=theano.config.floatX))            
-            v = momentum * m - learning_rate * g  # velocity
+        for param, grad  in zip(self.params, gparams): 
+            value = param.get_value(borrow=True)
+            m = theano.shared(value=numpy.zeros(value.shape, dtype=theano.config.floatX))            
+            v = momentum * m - learning_rate * grad  # velocity
             updates.append((m, v))
                 
             if nesterov:
-                new_p = p + momentum * v - learning_rate * g
+                param_new = param + momentum * v - learning_rate * grad
             else:
-                new_p = p + v               
+                param_new = param + v               
 
-            updates.append((p, new_p))  # apply constraints
+            updates.append((param, param_new))  # apply constraints
     
 
         train_fn = theano.function(
@@ -154,12 +153,11 @@ class MLP(object):
 
 
 def test_mnist(finetune_lr=0.1,
-             pretraining_epochs=10,
-             pretrain_lr=0.01,
-             k=1,
              training_epochs=50,
              dataset='../datasets/mnist.pkl.gz',
-             batch_size=10):
+             batch_size=10,
+             momentum =0.9,
+             nesterov=True):
     
     datasets = load_data(dataset)
 
@@ -170,16 +168,22 @@ def test_mnist(finetune_lr=0.1,
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
     numpy_rng = numpy.random.RandomState(123)
+    theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))  
+    
     print '... building the model'
-    mlp = MLP(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[1000, 500],
+    mlp = MLP(numpy_rng=numpy_rng,
+              theano_rng=theano_rng,
+              n_ins=28 * 28,
+              hidden_layers_sizes=[1000],
               n_outs=10)
 
     print '... getting the finetuning functions'
     train_fn, validate_model, test_model = mlp.build_finetune_functions(
         datasets=datasets,
         batch_size=batch_size,
-        learning_rate=finetune_lr
+        learning_rate=finetune_lr,
+        momentum=momentum,
+        nesterov=nesterov
     )
 
     print '... finetuning the model'

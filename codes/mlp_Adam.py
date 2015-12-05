@@ -71,7 +71,6 @@ class MLP(object):
 
         self.errors = self.logLayer.errors(self.y)
         
-        self.iterations = theano.shared(value=numpy.asarray([0], dtype=theano.config.floatX))
 
 
     def build_finetune_functions(self, datasets, batch_size, learning_rate, beta_1=0.9, beta_2=0.999, epsilon=1e-8):
@@ -90,32 +89,26 @@ class MLP(object):
 
         gparams = T.grad(self.finetune_cost, self.params)
 
+        iterations = theano.shared(numpy.asarray(0., dtype=theano.config.floatX))
      
         updates = []     
-        updates = [(self.iterations, self.iterations+1.)]
+        updates = [(iterations, iterations+1.)]
         
-        t = self.iterations + 1        
-        lr_t = learning_rate * T.sqrt(1 - T.pow(beta_2, t)) / (1 - T.pow(beta_1, t))
-        
+        t = iterations + 1        
+        lr_t = learning_rate * T.sqrt(1 - T.pow(beta_2, t)) / (1 - T.pow(beta_1, t))        
    
-        for p, g in zip(self.params, gparams):
+        for param, grad in zip(self.params, gparams):
+            value = param.get_value(borrow=True)
+            m_prev = theano.shared(value=numpy.zeros(value.shape, dtype=theano.config.floatX))
+            v_prev = theano.shared(value=numpy.zeros(value.shape, dtype=theano.config.floatX))
             
-            # zero init of moment            
-            m = theano.shared(value=numpy.zeros(p.get_value().shape, dtype=theano.config.floatX))
-            # zero init of velocity
-            v = theano.shared(value=numpy.zeros(p.get_value().shape, dtype=theano.config.floatX))
-            ## update accumulator
-            
+            m_t = (beta_1 * m_prev) + (1 - beta_1) * grad
+            v_t = (beta_2 * v_prev) + (1 - beta_2) * T.sqr(grad)
+            param_t = param - lr_t * m_t / (T.sqrt(v_t) + epsilon)
 
-            m_t = (beta_1 * m) + (1 - beta_1) * g
-            v_t = (beta_2 * v) + (1 - beta_2) * T.sqr(g)
-            p_t = p - lr_t * m_t / (T.sqrt(v_t) + epsilon)# algo errado aki            
-
-
-            updates.append((m, m_t))
-            updates.append((v, v_t))
-            updates.append((p, p_t))# algo errado aki
-
+            updates.append((m_prev, m_t))
+            updates.append((v_prev, v_t))
+            updates.append((param, param_t))        
 
           
         train_fn = theano.function(
@@ -168,12 +161,12 @@ class MLP(object):
 
 
 def test_mnist(finetune_lr=0.1,
-             pretraining_epochs=10,
-             pretrain_lr=0.01,
-             k=1,
              training_epochs=50,
              dataset='../datasets/mnist.pkl.gz',
-             batch_size=10):
+             batch_size=10,
+             beta_1=0.9,
+             beta_2=0.999,
+             epsilon=1e-8):
     
     datasets = load_data(dataset)
 
@@ -184,16 +177,22 @@ def test_mnist(finetune_lr=0.1,
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
     numpy_rng = numpy.random.RandomState(123)
+    theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))  
+    
     print '... building the model'
-    mlp = MLP(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[1000, 500],
+    mlp = MLP(numpy_rng=numpy_rng,
+              n_ins=28 * 28,
+              hidden_layers_sizes=[1000],
               n_outs=10)
 
     print '... getting the finetuning functions'
     train_fn, validate_model, test_model = mlp.build_finetune_functions(
         datasets=datasets,
         batch_size=batch_size,
-        learning_rate=finetune_lr
+        learning_rate=finetune_lr, 
+        beta_1=beta_1,
+        beta_2=beta_2,
+        epsilon=epsilon
     )
 
     print '... finetuning the model'

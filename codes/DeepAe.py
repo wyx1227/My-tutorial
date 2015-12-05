@@ -224,7 +224,8 @@ def test_toy(finetune_lr=0.1,
     numpy_rng = numpy.random.RandomState(123)
     
     print '... building the model'
-    dbn = DBN(numpy_rng=numpy_rng, n_ins=4 * 4,
+    dbn = DBN(numpy_rng=numpy_rng,
+              n_ins=4 * 4,
               hidden_layers_sizes=[25, 10])
     
     if not os.path.isdir(output_folder):
