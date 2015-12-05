@@ -90,7 +90,6 @@ class MLP(object):
         accumulators=[]
         delta_accumulators=[]
         for p in self.params:
-            print (p.get_value().shape)
             a = numpy.zeros(p.get_value().shape,dtype=theano.config.floatX)
             d_a = numpy.zeros(p.get_value().shape,dtype=theano.config.floatX)
             accumulators.append(theano.shared(value=a, borrow=True))
