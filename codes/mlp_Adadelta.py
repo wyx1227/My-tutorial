@@ -87,11 +87,15 @@ class MLP(object):
 
 
         gparams = T.grad(self.finetune_cost, self.params)
-        accumulators = [theano.shared(value=numpy.zeros(p.get_value().shape),
-                dtype=theano.config.floatX) for p in self.params]#arrumar
-        delta_accumulators = [theano.shared(value=numpy.zeros(p.get_value().shape),
-                dtype=theano.config.floatX) for p in self.params]#arrumar
-
+        accumulators=[]
+        delta_accumulators=[]
+        for p in self.params:
+            print (p.get_value().shape)
+            a = numpy.zeros(p.get_value().shape,dtype=theano.config.floatX)
+            d_a = numpy.zeros(p.get_value().shape,dtype=theano.config.floatX)
+            accumulators.append(theano.shared(value=a, borrow=True))
+            delta_accumulators.append(theano.shared(value=d_a, borrow=True))
+        
         updates = []
         for p, g, a, d_a in zip(self.params, gparams, accumulators,
                                    delta_accumulators):
