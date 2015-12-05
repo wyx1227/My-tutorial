@@ -1,7 +1,6 @@
 import os
 import sys
 import timeit
-import time
 
 import numpy
 
@@ -23,7 +22,7 @@ class dA(object):
 
     def __init__(
         self,
-        numpy_rng,
+        numpy_rng=None,
         theano_rng=None,
         input=None,
         n_visible=784,
@@ -35,6 +34,9 @@ class dA(object):
         self.n_visible = n_visible
         self.n_hidden = n_hidden
 
+        if numpy_rng is None:
+            numpy_rng = numpy.random.RandomState(1234)
+            
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
 
@@ -73,6 +75,7 @@ class dA(object):
         self.b_prime = bvis
         self.W_prime = self.W.T
         self.theano_rng = theano_rng
+        
         if input is None:
             self.x = T.dmatrix(name='input')
         else:
@@ -107,9 +110,9 @@ class dA(object):
         return (cost, updates)
         
 
-def test_toy(learning_rate=0.1, training_epochs=15,
+def test_toy(learning_rate=0.1,
+             training_epochs=15,
              n_hidden=30,
-             dataset='../datasets/mnist.pkl.gz',
              batch_size=20,
              output_folder='toy_dA_plots'):
  
@@ -149,8 +152,8 @@ def test_toy(learning_rate=0.1, training_epochs=15,
     )
 
     train_da = theano.function(
-        [index],
-        cost,
+        inputs=[index],
+        outputs=cost,
         updates=updates,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size]
@@ -159,8 +162,7 @@ def test_toy(learning_rate=0.1, training_epochs=15,
 
     print 'Starting training with %d epochs' %training_epochs
     plotting_time = 0.
-    start_time = time.clock()
-    print 'Starting training at %f ' %start_time
+    start_time = timeit.default_timer()
  
     for epoch in xrange(training_epochs):
         c = []
@@ -181,16 +183,10 @@ def test_toy(learning_rate=0.1, training_epochs=15,
         image.save('filters_at_epoch_%i.png' % epoch)
         plotting_stop = timeit.default_timer()
         plotting_time += (plotting_stop - plotting_start) 
-                
-    end_time = time.clock()
-    training_time = (end_time - start_time)
-    print 'Ending training at %f ' %end_time
-    print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)
 
+    end_time = timeit.default_timer()
+    print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)        
 
-    print >> sys.stderr, ('The 30% corruption code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % (training_time / 60.))
     image = Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
         img_shape=(4, 4), tile_shape=(10, 10),
@@ -200,8 +196,8 @@ def test_toy(learning_rate=0.1, training_epochs=15,
     os.chdir('../')
 
 
-
-def test_mnist(learning_rate=0.1, training_epochs=15,
+def test_mnist(learning_rate=0.1,
+               training_epochs=15,
                n_hidden=500,
                dataset='../datasets/mnist.pkl.gz',
                batch_size=20,
@@ -246,8 +242,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
 
     print 'Starting training with %d epochs' %training_epochs
     plotting_time = 0.
-    start_time = time.clock()
-    print 'Starting training at %f ' %start_time
+    start_time = timeit.default_timer()
  
     for epoch in xrange(training_epochs):
         c = []
@@ -269,15 +264,9 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
         plotting_stop = timeit.default_timer()
         plotting_time += (plotting_stop - plotting_start) 
                 
-    end_time = time.clock()
-    training_time = (end_time - start_time)
-    print 'Ending training at %f ' %end_time
-    print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.)
-
-
-    print >> sys.stderr, ('The 30% corruption code for file ' +
-                          os.path.split(__file__)[1] +
-                          ' ran for %.2fm' % (training_time / 60.))
+    end_time = timeit.default_timer()
+    print 'Training took %.2f minutes' % ((end_time - start_time)/ 60.) 
+    
     image = Image.fromarray(tile_raster_images(
         X=da.W.get_value(borrow=True).T,
         img_shape=(28, 28), tile_shape=(10, 10),

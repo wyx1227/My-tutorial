@@ -70,7 +70,6 @@ class DBN(object):
 
             self.params.extend(sigmoid_layer.params)
             
-            #Decoder
 
         for i in xrange(self.n_layers-1,-1,-1):
             if i == 0:
@@ -198,6 +197,7 @@ def test_toy(finetune_lr=0.1,
              k=1,
              training_epochs=10,
              dataset='../datasets/mnist.pkl.gz',
+             output_folder='toy_DeepAe_plots',
              batch_size=10):
    
     print 'Creating dataset...'
@@ -227,6 +227,10 @@ def test_toy(finetune_lr=0.1,
     dbn = DBN(numpy_rng=numpy_rng, n_ins=4 * 4,
               hidden_layers_sizes=[25, 10])
     
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
+    os.chdir(output_folder)       
+    
     print '... getting the pretraining functions'
     pretraining_fns = dbn.pretraining_functions(train_set_x=train_set_x,
                                                 batch_size=batch_size,
@@ -329,7 +333,7 @@ def test_toy(finetune_lr=0.1,
         inputs=[],
         outputs=dbn.sigmoid_layers_prime[-1].output,
         givens={
-                dbn.x: test_set_x[100 : 120]
+                dbn.x: train_set_x[100 : 120]
         }            
     )           
     
@@ -341,24 +345,19 @@ def test_toy(finetune_lr=0.1,
         }            
     )
     
-    
-    recontruct_test_fn
-    recontruct_train_fn 
-    
-    
     image = Image.fromarray(tile_raster_images(
-        X=recontruct_test_fn(),
-        img_shape=(4, 4), tile_shape=(10, 10),
+        X=numpy.concatenate((test_set_x[100 : 120].eval(),recontruct_test_fn())),
+        img_shape=(4, 4), tile_shape=(2,20),
         tile_spacing=(1, 1)))
     image.save('reconstructed_test.png')
-
-
-
-
-
-
-
-
+    
+    image = Image.fromarray(tile_raster_images(
+        X=numpy.concatenate((train_set_x[100 : 120].eval(),recontruct_train_fn())),
+        img_shape=(4, 4), tile_shape=(2, 20),
+        tile_spacing=(1, 1)))
+    image.save('reconstructed_train.png') 
+    
+    os.chdir('../') 
 
 
 def test_mnist(finetune_lr=0.1,
@@ -367,6 +366,7 @@ def test_mnist(finetune_lr=0.1,
              k=1,
              training_epochs=10,
              dataset='../datasets/mnist.pkl.gz',
+             output_folder='mnist_DeepAe_plots',
              batch_size=10):
     
     datasets = load_data(dataset)
@@ -382,6 +382,12 @@ def test_mnist(finetune_lr=0.1,
     print '... building the model'
     dbn = DBN(numpy_rng=numpy_rng, n_ins=28 * 28,
               hidden_layers_sizes=[800, 400])
+    
+    
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
+    os.chdir(output_folder)       
+        
 
     print '... getting the pretraining functions'
     pretraining_fns = dbn.pretraining_functions(train_set_x=train_set_x,
@@ -485,7 +491,7 @@ def test_mnist(finetune_lr=0.1,
         inputs=[],
         outputs=dbn.sigmoid_layers_prime[-1].output,
         givens={
-                dbn.x: test_set_x[100 : 120]
+                dbn.x: test_set_x[100 : 130]
         }            
     )           
     
@@ -493,22 +499,24 @@ def test_mnist(finetune_lr=0.1,
         inputs=[],
         outputs=dbn.sigmoid_layers_prime[-1].output,
         givens={
-            dbn.x: test_set_x[100 : 120]
+            dbn.x: test_set_x[100 : 130]
         }            
     )
-   
-    
-    recontruct_test_fn
-    recontruct_train_fn 
-    
-
     image = Image.fromarray(tile_raster_images(
-        X=recontruct_test_fn(),
-        img_shape=(28, 28), tile_shape=(10, 10),
+        X=numpy.concatenate((test_set_x[100 : 120].eval(),recontruct_test_fn())),
+        img_shape=(28, 28), tile_shape=(2,20),
         tile_spacing=(1, 1)))
     image.save('reconstructed_test.png')
+    
+    image = Image.fromarray(tile_raster_images(
+        X=numpy.concatenate((train_set_x[100 : 120].eval(),recontruct_train_fn())),
+        img_shape=(28, 28), tile_shape=(2, 20),
+        tile_spacing=(1, 1)))
+    image.save('reconstructed_train.png') 
+    
+    os.chdir('../') 
 
 
 if __name__ == '__main__':
-    #test_mnist()
+    test_mnist()
     test_toy()

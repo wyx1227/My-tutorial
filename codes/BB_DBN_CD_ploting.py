@@ -229,6 +229,21 @@ def test_toy(finetune_lr=0.1,
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
 
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
+    os.chdir(output_folder)
+
+
+
+    for i in xrange(dbn.n_layers):
+        
+        X=dbn.rbm_layers[i].W.get_value(borrow=True).T,
+        
+        image = Image.fromarray(tile_raster_images(
+            X=dbn.rbm_layers[i].W.get_value(borrow=True).T,
+            img_shape=(28, 28), tile_shape=(10, 10),
+            tile_spacing=(1, 1)))
+        image.save('filters_corruption_30.png')
 
 
 def test_mnist(finetune_lr=0.1,

@@ -168,23 +168,8 @@ class RBM(object):
             )
         )
         
-        
-        plot_every = 1000
-        (
-            [
-                presig_hids,
-                hid_mfs,
-                hid_samples,
-                presig_vis,
-                vis_mfs,
-                vis_samples
-            ],
-            updates
-        ) = theano.scan(
-            rbm.gibbs_vhv,
-            outputs_info=[None, None, None, None, None, persistent_vis_chain],
-            n_steps=plot_every
-        )
+
+
     
         updates.update({persistent_vis_chain: vis_samples[-1]})
         sample_fn = theano.function(
@@ -333,7 +318,45 @@ def test_toy(learning_rate=0.1,
 
     image = Image.fromarray(image_data)
     image.save('samples.png')
-    os.chdir('../')             
+    os.chdir('../')    
+    
+#-----------------------------------    
+    
+    plot_every = 1000
+    (
+        [
+            presig_hids,
+            hid_mfs,
+            hid_samples,
+            presig_vis,
+            vis_mfs,
+            vis_samples
+        ],
+        updates
+    ) = theano.scan(
+        rbm.gibbs_vhv,
+        outputs_info=[None, None, None, None, None, persistent_vis_chain],
+        n_steps=plot_every
+    )    
+    
+    hid_mfs
+    
+    hid_samples
+
+    from sklearn.manifold import TSNE
+    model = TSNE(n_components=2, init='pca', random_state=0)
+    model.fit_transform(hid_mfs[-1])     
+    
+    fig = plt.figure(figsize=(15, 8))    
+
+    ax = fig.add_subplot(2, 5, 10)
+    plt.scatter(Y[:, 0], Y[:, 1], c=color, cmap=plt.cm.Spectral)
+    plt.title("t-SNE (%.2g sec)" % (t1 - t0))
+    ax.xaxis.set_major_formatter(NullFormatter())
+    ax.yaxis.set_major_formatter(NullFormatter())
+    plt.axis('tight')
+    
+    plt.show()    
                  
                  
 def test_mnist(learning_rate=0.1, training_epochs=15,
