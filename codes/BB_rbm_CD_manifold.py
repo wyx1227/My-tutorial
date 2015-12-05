@@ -159,45 +159,18 @@ class RBM(object):
 
 
 
-    def get_manifold_tsne(self,v_sample):
-        cross_entropy = T.mean(
-            T.sum(
-                self.input * T.log(T.nnet.sigmoid(pre_sigmoid_nv)) +
-                (1 - self.input) * T.log(1 - T.nnet.sigmoid(pre_sigmoid_nv)),
-                axis=1
-            )
-        )
-        
-
-
-    
-        updates.update({persistent_vis_chain: vis_samples[-1]})
-        sample_fn = theano.function(
-            [],
-            [
-                vis_mfs[-1],
-                vis_samples[-1]
-            ],
-            updates=updates,
-            name='sample_fn'
-        )        
-
-        return cross_entropy
-
-
-
 
 def test_toy(learning_rate=0.1,
              training_epochs=15, 
              n_chains=20,
              n_samples=10,
-             batch_size=20, 
+             batch_size=10, 
              output_folder='toy_rbm_CD_plots',
-             n_hidden=30):
+             n_hidden=25):
     
     print 'Creating dataset...'
-    train_set_x = toy_dataset(p=0.001, size=10000, seed=238904)
-    test_set_x = toy_dataset(p=0.001, size=10000, seed=238905)
+    train_set_x = toy_dataset(p=0.001, size=5000, seed=238904)
+    test_set_x = toy_dataset(p=0.001, size=1000, seed=238905)
     train_set_x = numpy.asarray(train_set_x, dtype=theano.config.floatX)
     test_set_x = numpy.asarray(test_set_x, dtype=theano.config.floatX)
     numpy.random.shuffle(train_set_x)
@@ -338,10 +311,6 @@ def test_toy(learning_rate=0.1,
         outputs_info=[None, None, None, None, None, persistent_vis_chain],
         n_steps=plot_every
     )    
-    
-    hid_mfs
-    
-    hid_samples
 
     from sklearn.manifold import TSNE
     model = TSNE(n_components=2, init='pca', random_state=0)
@@ -349,14 +318,14 @@ def test_toy(learning_rate=0.1,
     
     fig = plt.figure(figsize=(15, 8))    
 
-    ax = fig.add_subplot(2, 5, 10)
-    plt.scatter(Y[:, 0], Y[:, 1], c=color, cmap=plt.cm.Spectral)
-    plt.title("t-SNE (%.2g sec)" % (t1 - t0))
-    ax.xaxis.set_major_formatter(NullFormatter())
-    ax.yaxis.set_major_formatter(NullFormatter())
-    plt.axis('tight')
+    #ax = fig.add_subplot(2, 5, 10)
+    #plt.scatter(Y[:, 0], Y[:, 1], c=color, cmap=plt.cm.Spectral)
+    #plt.title("t-SNE (%.2g sec)" % (t1 - t0))
+    #ax.xaxis.set_major_formatter(NullFormatter())
+    #ax.yaxis.set_major_formatter(NullFormatter())
+    #plt.axis('tight')
     
-    plt.show()    
+    #plt.show()    
                  
                  
 def test_mnist(learning_rate=0.1, training_epochs=15,

@@ -72,7 +72,7 @@ class MLP(object):
         self.errors = self.logLayer.errors(self.y)
 
 
-    def build_finetune_functions(self, datasets, batch_size, learning_rate, rho=0.95, epsilon=1e-6):
+    def build_finetune_functions(self, datasets, batch_size, learning_rate):
 
         (train_set_x, train_set_y) = datasets[0]
         (valid_set_x, valid_set_y) = datasets[1]
@@ -85,37 +85,11 @@ class MLP(object):
 
         index = T.lscalar('index') 
 
-
         gparams = T.grad(self.finetune_cost, self.params)
-        accumulators = [theano.shared(value=numpy.zeros(p.get_value().shape)) for p in self.params]#arrumar
-        delta_accumulators = [theano.shared(value=numpy.zeros(p.get_value().shape)) for p in self.params]#arrumar
 
         updates = []
-        for p, g, a, d_a in zip(self.params, gparams, accumulators,
-                                   delta_accumulators):
-            # update accumulator
-            new_a = rho * a + (1 - rho) * T.sqr(g)
-            updates.append((a, new_a))
-    
-            # use the new accumulator and the *old* delta_accumulator
-            update = g * T.sqrt(d_a + epsilon) / T.sqrt(new_a + epsilon)
-    
-            new_p = p - learning_rate * update
-            updates.append((p, new_p))  # apply constraints
-    
-            # update delta_accumulator
-            new_d_a = rho * d_a + (1 - rho) * T.sqr(update)
-            updates.append((d_a, new_d_a))
-
-
-            
-            #GET UPDATES from KERAS
-            #'''
-                #Reference: http://arxiv.org/abs/1212.5701
-            #'''
-            #def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
-    
-
+        for param, gparam in zip(self.params, gparams):
+            updates.append((param, param - gparam * learning_rate))
 
         train_fn = theano.function(
             inputs=[index],

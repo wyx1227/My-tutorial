@@ -491,7 +491,7 @@ def test_mnist(finetune_lr=0.1,
         inputs=[],
         outputs=dbn.sigmoid_layers_prime[-1].output,
         givens={
-                dbn.x: test_set_x[100 : 130]
+                dbn.x: train_set_x[100 : 120]
         }            
     )           
     
@@ -499,7 +499,7 @@ def test_mnist(finetune_lr=0.1,
         inputs=[],
         outputs=dbn.sigmoid_layers_prime[-1].output,
         givens={
-            dbn.x: test_set_x[100 : 130]
+            dbn.x: test_set_x[100 : 120]
         }            
     )
     image = Image.fromarray(tile_raster_images(

@@ -143,7 +143,7 @@ class RBM(object):
         
         monitoring_cost = self.get_reconstruction_cost(updates, pre_sigmoid_nvs[-1])
 
-        return monitoring_cost, updates
+        return (monitoring_cost, updates)
 
 
     def get_reconstruction_cost(self, updates, pre_sigmoid_nv):
