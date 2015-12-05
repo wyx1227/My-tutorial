@@ -93,8 +93,7 @@ class MLP(object):
             accumulators.append(theano.shared(value=a, borrow=True))
         
         updates = []
-        for p, g, a, d_a in zip(self.params, gparams, accumulators,
-                                   delta_accumulators):
+        for p, g, a in zip(self.params, gparams, accumulators):
             # update accumulator
             new_a = a + T.sqr(g)
             updates.append((a, new_a))
