@@ -167,10 +167,10 @@ class MLP(object):
 
 
 def test_mnist(finetune_lr=0.1,
-             pretraining_epochs=100,
+             pretraining_epochs=10,
              pretrain_lr=0.01,
              k=1,
-             training_epochs=1000,
+             training_epochs=50,
              dataset='../datasets/mnist.pkl.gz',
              batch_size=10):
     
@@ -185,7 +185,7 @@ def test_mnist(finetune_lr=0.1,
     numpy_rng = numpy.random.RandomState(123)
     print '... building the model'
     mlp = MLP(numpy_rng=numpy_rng, n_ins=28 * 28,
-              hidden_layers_sizes=[1000, 1000, 1000],
+              hidden_layers_sizes=[1000, 500],
               n_outs=10)
 
     print '... getting the finetuning functions'
