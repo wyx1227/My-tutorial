@@ -15,8 +15,7 @@ from utils import load_data, tile_raster_images
 
 from toy_dataset import toy_dataset
 
-from sklearn import (manifold, datasets, decomposition, ensemble,
-                     discriminant_analysis, random_projection)
+from sklearn import manifold
 
 import matplotlib.pyplot as plt
 
