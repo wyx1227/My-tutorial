@@ -154,7 +154,6 @@ class RBM(object):
                 axis=1
             )
         )
-
         return cross_entropy
 
 
@@ -415,7 +414,7 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
 
     image = Image.fromarray(image_data)
     image.save('samples.png')
-    os.chdir('../')             
+    os.chdir('../')      
                  
 
 if __name__ == '__main__':

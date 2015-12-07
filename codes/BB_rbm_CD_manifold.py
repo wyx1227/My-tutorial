@@ -15,6 +15,11 @@ from utils import load_data, tile_raster_images
 
 from toy_dataset import toy_dataset
 
+from sklearn import (manifold, datasets, decomposition, ensemble,
+                     discriminant_analysis, random_projection)
+
+import matplotlib.pyplot as plt
+
 class RBM(object):
     def __init__(
         self,
@@ -161,9 +166,9 @@ class RBM(object):
 
 
 def test_toy(learning_rate=0.1,
-             training_epochs=15, 
-             n_chains=20,
-             n_samples=10,
+             training_epochs=4, 
+             n_chains=200,
+             n_samples=3,
              batch_size=10, 
              output_folder='toy_rbm_CD_plots',
              n_hidden=25):
@@ -294,8 +299,13 @@ def test_toy(learning_rate=0.1,
     os.chdir('../')    
     
 #-----------------------------------    
-    
-    plot_every = 1000
+    persistent_vis_chain_tse = theano.shared(
+        numpy.asarray(
+            test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
+            dtype=theano.config.floatX
+        )
+    )    
+    plot_every = 10
     (
         [
             presig_hids,
@@ -308,25 +318,42 @@ def test_toy(learning_rate=0.1,
         updates
     ) = theano.scan(
         rbm.gibbs_vhv,
-        outputs_info=[None, None, None, None, None, persistent_vis_chain],
+        outputs_info=[None, None, None, None, None, persistent_vis_chain_tse],
         n_steps=plot_every
-    )    
+    )
 
-    from sklearn.manifold import TSNE
-    model = TSNE(n_components=2, init='pca', random_state=0)
-    model.fit_transform(hid_mfs[-1])     
-    
-    fig = plt.figure(figsize=(15, 8))    
+    updates.update({persistent_vis_chain_tse: vis_samples[-1]})
 
-    #ax = fig.add_subplot(2, 5, 10)
-    #plt.scatter(Y[:, 0], Y[:, 1], c=color, cmap=plt.cm.Spectral)
-    #plt.title("t-SNE (%.2g sec)" % (t1 - t0))
-    #ax.xaxis.set_major_formatter(NullFormatter())
-    #ax.yaxis.set_major_formatter(NullFormatter())
-    #plt.axis('tight')
+
+    sample_hid_fn = theano.function(
+        [],
+        [
+            hid_mfs[-1],
+            hid_samples[-1]
+        ],
+        updates=updates,
+        name='sample_hid_fn'
+    )
     
-    #plt.show()    
-                 
+    hid_mf, hid_sample = sample_hid_fn()
+    print (hid_mf)
+    print (hid_sample)
+    print (test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
+    
+    model_recon = manifold.TSNE(n_components=2, init='pca', random_state=0)
+        
+    X_tsne=model_recon.fit_transform(hid_mf) 
+    
+    model_original = manifold.TSNE(n_components=2, init='pca', random_state=0)
+    
+    X_tsne_original=model_original.fit_transform(test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
+    
+    
+    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+    ax1.scatter(X_tsne_original[:,0], X_tsne_original[:,1])
+    ax2.scatter(X_tsne[:,0], X_tsne[:,1])
+    plt.show()
+
                  
 def test_mnist(learning_rate=0.1, training_epochs=15,
              dataset='../datasets/mnist.pkl.gz', batch_size=20,
@@ -452,6 +479,64 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     image = Image.fromarray(image_data)
     image.save('samples.png')
     os.chdir('../')             
+    
+#--------------------    
+    
+    persistent_vis_chain_tse = theano.shared(
+        numpy.asarray(
+            test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
+            dtype=theano.config.floatX
+        )
+    )    
+    plot_every = 10
+    (
+        [
+            presig_hids,
+            hid_mfs,
+            hid_samples,
+            presig_vis,
+            vis_mfs,
+            vis_samples
+        ],
+        updates
+    ) = theano.scan(
+        rbm.gibbs_vhv,
+        outputs_info=[None, None, None, None, None, persistent_vis_chain_tse],
+        n_steps=plot_every
+    )
+
+    updates.update({persistent_vis_chain_tse: vis_samples[-1]})
+
+
+    sample_hid_fn = theano.function(
+        [],
+        [
+            hid_mfs[-1],
+            hid_samples[-1]
+        ],
+        updates=updates,
+        name='sample_hid_fn'
+    )
+    
+    hid_mf, hid_sample = sample_hid_fn()
+    print (hid_mf)
+    print (hid_sample)
+    print (test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
+    
+    model_recon = manifold.TSNE(n_components=2, init='pca', random_state=0)
+        
+    X_tsne=model_recon.fit_transform(hid_mf) 
+    
+    model_original = manifold.TSNE(n_components=2, init='pca', random_state=0)
+    
+    X_tsne_original=model_original.fit_transform(test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
+    
+    
+    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+    ax1.scatter(X_tsne_original[:,0], X_tsne_original[:,1])
+    ax2.scatter(X_tsne[:,0], X_tsne[:,1])
+    plt.show()
+    
                  
 
 if __name__ == '__main__':
