@@ -335,9 +335,6 @@ def test_toy(learning_rate=0.1,
     )
     
     hid_mf, hid_sample = sample_hid_fn()
-    print (hid_mf)
-    print (hid_sample)
-    print (test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
     
     model_recon = manifold.TSNE(n_components=2, init='pca', random_state=0)
         
@@ -518,9 +515,6 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     )
     
     hid_mf, hid_sample = sample_hid_fn()
-    print (hid_mf)
-    print (hid_sample)
-    print (test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
     
     model_recon = manifold.TSNE(n_components=2, init='pca', random_state=0)
         
@@ -539,5 +533,5 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
                  
 
 if __name__ == '__main__':
-    #test_mnist()
-    test_toy()
+    test_mnist()
+    #test_toy()
