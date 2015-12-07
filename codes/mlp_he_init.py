@@ -21,8 +21,8 @@ class HiddenLayer(object):
 
         self.input = input
         if W is None:
-            #Glorot 2010 uniform initialization
-            scale = numpy.sqrt(6. / (n_in + n_out))
+            #He 2014 uniform initialization He et al., http://arxiv.org/abs/1502.01852
+            scale = numpy.sqrt(6. / n_in)
             W_values = numpy.asarray(
                 rng.uniform(
                     low=-scale,

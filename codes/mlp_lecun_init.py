@@ -21,8 +21,8 @@ class HiddenLayer(object):
 
         self.input = input
         if W is None:
-            #Glorot 2010 uniform initialization
-            scale = numpy.sqrt(6. / (n_in + n_out))
+            #Lecun 98 initialization He et al., Efficient Backprop   http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
+            scale = numpy.sqrt(3. / n_in)
             W_values = numpy.asarray(
                 rng.uniform(
                     low=-scale,
