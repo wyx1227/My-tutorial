@@ -11,11 +11,9 @@ import timeit
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from utils import load_data, tile_raster_images, plot_embedding
+from utils import load_data, tile_raster_images, scale_to_unit_interval
 
 from toy_dataset import toy_dataset
-
-from sklearn import manifold
 
 import matplotlib.pyplot as plt
 
@@ -147,7 +145,7 @@ class RBM(object):
         
         monitoring_cost = self.get_reconstruction_cost(updates, pre_sigmoid_nvs[-1])
 
-        return monitoring_cost, updates
+        return (monitoring_cost, updates)
 
 
     def get_reconstruction_cost(self, updates, pre_sigmoid_nv):
@@ -158,23 +156,21 @@ class RBM(object):
                 axis=1
             )
         )
-
         return cross_entropy
 
 
 
-
-def test_toy(learning_rate=0.1,
-             training_epochs=4, 
-             n_chains=200,
-             n_samples=3,
-             batch_size=10, 
+def test_toy(learning_rate=0.01,
+             training_epochs=5, 
+             n_chains=20,
+             n_samples=10,
+             batch_size=20, 
              output_folder='toy_rbm_CD_plots',
-             n_hidden=25):
+             n_hidden=30):
     
     print 'Creating dataset...'
-    train_set_x = toy_dataset(p=0.001, size=5000, seed=238904)
-    test_set_x = toy_dataset(p=0.001, size=1000, seed=238905)
+    train_set_x = toy_dataset(p=0.001, size=10000, seed=238904)
+    test_set_x = toy_dataset(p=0.001, size=10000, seed=238905)
     train_set_x = numpy.asarray(train_set_x, dtype=theano.config.floatX)
     test_set_x = numpy.asarray(test_set_x, dtype=theano.config.floatX)
     numpy.random.shuffle(train_set_x)
@@ -234,6 +230,26 @@ def test_toy(learning_rate=0.1,
                     )
                 )
         image.save('filters_at_epoch_%i.png' % epoch)
+
+        foo = train_set_x.get_value(borrow=True)[0:batch_size]
+        _, prob = rbm.propup(train_set_x.get_value(borrow=True)[0:batch_size])
+        image = Image.fromarray(
+                            tile_raster_images(
+                                X=(prob.eval()).reshape((1,batch_size*n_hidden)),
+                                img_shape=(batch_size,n_hidden),
+                                tile_shape=(1, 1),
+                                tile_spacing=(0, 0)
+                            )
+                        )        
+        image.save('hid_prob_at_epoch_%i.png' % epoch)  
+
+        plt.clf()
+        plt.hist(rbm.W.get_value(borrow=True))
+        plt.title("Histogram")
+        plt.xlabel("Value")
+        plt.ylabel("Frequency")        
+        plt.savefig('hist_at_epoch_%i.png' % epoch)
+        
         plotting_stop = timeit.default_timer()
         plotting_time += (plotting_stop - plotting_start) 
                 
@@ -295,79 +311,20 @@ def test_toy(learning_rate=0.1,
 
     image = Image.fromarray(image_data)
     image.save('samples.png')
- 
-    
-#-----------------------------------    
-    persistent_vis_chain_tse = theano.shared(
-        numpy.asarray(
-            test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
-            dtype=theano.config.floatX
-        )
-    )    
-    plot_every = 10
-    (
-        [
-            presig_hids,
-            hid_mfs,
-            hid_samples,
-            presig_vis,
-            vis_mfs,
-            vis_samples
-        ],
-        updates
-    ) = theano.scan(
-        rbm.gibbs_vhv,
-        outputs_info=[None, None, None, None, None, persistent_vis_chain_tse],
-        n_steps=plot_every
-    )
-
-    updates.update({persistent_vis_chain_tse: vis_samples[-1]})
-
-
-    sample_hid_fn = theano.function(
-        [],
-        [
-            hid_mfs[-1],
-            hid_samples[-1]
-        ],
-        updates=updates,
-        name='sample_hid_fn'
-    )
-    
-    hid_mf, hid_sample = sample_hid_fn()
-    
-    model_recon = manifold.TSNE(n_components=2, init='pca', random_state=0)
-        
-    X_tsne=model_recon.fit_transform(hid_mf) 
-    
-    model_original = manifold.TSNE(n_components=2, init='pca', random_state=0)
-    
-    X_tsne_original=model_original.fit_transform(test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
-    
-    
-    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
-    ax1.scatter(X_tsne_original[:,0], X_tsne_original[:,1])
-    ax2.scatter(X_tsne[:,0], X_tsne[:,1])
-    plt.savefig('foo.png')    
-    plt.show()
-    os.chdir('../')   
-
+    os.chdir('../')             
                  
-def test_mnist(learning_rate=0.1,
-               training_epochs=2,
-               dataset='../datasets/mnist.pkl.gz', 
-               batch_size=20,
-               n_chains=20,
-               n_samples=10, 
-               output_folder='MNIST_rbm_CD_plots',
-               n_hidden=500):
+                 
+def test_mnist(learning_rate=0.1, training_epochs=15,
+             dataset='../datasets/mnist.pkl.gz', batch_size=20,
+             n_chains=20, n_samples=10, 
+             output_folder='MNIST_rbm_CD_plots',
+             n_hidden=500):
 
     print 'Loading MNIST dataset...'
     datasets = load_data(dataset)
 
     train_set_x, train_set_y = datasets[0]
     test_set_x, test_set_y = datasets[2]
-    
 
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
@@ -480,63 +437,9 @@ def test_mnist(learning_rate=0.1,
 
     image = Image.fromarray(image_data)
     image.save('samples.png')
-          
-    
-#--------------------    
-    
-    persistent_vis_chain_tse = theano.shared(
-        numpy.asarray(
-            test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
-            dtype=theano.config.floatX
-        )
-    )    
-    plot_every = 10
-    (
-        [
-            presig_hids,
-            hid_mfs,
-            hid_samples,
-            presig_vis,
-            vis_mfs,
-            vis_samples
-        ],
-        updates
-    ) = theano.scan(
-        rbm.gibbs_vhv,
-        outputs_info=[None, None, None, None, None, persistent_vis_chain_tse],
-        n_steps=plot_every
-    )
-
-    updates.update({persistent_vis_chain_tse: vis_samples[-1]})
-
-
-    sample_hid_fn = theano.function(
-        [],
-        [
-            hid_mfs[-1],
-            hid_samples[-1]
-        ],
-        updates=updates,
-        name='sample_hid_fn'
-    )
-    
-    hid_mf, hid_sample = sample_hid_fn()
-    
-    model_recon = manifold.TSNE(n_components=2, init='pca', random_state=0)
-        
-    X_tsne=model_recon.fit_transform(hid_mf) 
-    
-    model_original = manifold.TSNE(n_components=2, init='pca', random_state=0)
-    
-    X_tsne_original=model_original.fit_transform(test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
-    
-    plot_embedding(X_tsne, test_set_y[test_idx:test_idx + n_chains].eval(),'Layer 1')       
-    plt.savefig('original.png')
-    plot_embedding(X_tsne_original, test_set_y[test_idx:test_idx + n_chains].eval(),'Original')  
-    plt.savefig('Tsne.png')
-    
-    os.chdir('../')   
+    os.chdir('../')      
+                 
 
 if __name__ == '__main__':
-    test_mnist()
-    #test_toy()
+    #test_mnist()
+    test_toy()
