@@ -295,7 +295,7 @@ def test_toy(learning_rate=0.1,
 
     image = Image.fromarray(image_data)
     image.save('samples.png')
-    os.chdir('../')    
+ 
     
 #-----------------------------------    
     persistent_vis_chain_tse = theano.shared(
@@ -348,7 +348,9 @@ def test_toy(learning_rate=0.1,
     f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
     ax1.scatter(X_tsne_original[:,0], X_tsne_original[:,1])
     ax2.scatter(X_tsne[:,0], X_tsne[:,1])
+    plt.savefig('foo.png')    
     plt.show()
+    os.chdir('../')   
 
                  
 def test_mnist(learning_rate=0.1,
@@ -478,7 +480,7 @@ def test_mnist(learning_rate=0.1,
 
     image = Image.fromarray(image_data)
     image.save('samples.png')
-    os.chdir('../')             
+          
     
 #--------------------    
     
@@ -531,13 +533,11 @@ def test_mnist(learning_rate=0.1,
     plot_embedding(X_tsne, test_set_y[test_idx:test_idx + n_chains].eval(),'Layer 1')       
     plot_embedding(X_tsne_original, test_set_y[test_idx:test_idx + n_chains].eval(),'Original')    
     
-    #f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
-    #ax1.scatter(X_tsne_original[:,0], X_tsne_original[:,1])
-    #ax2.scatter(X_tsne[:,0], X_tsne[:,1])
+    plt.savefig('foo.png')
     plt.show()
     
-                 
+    os.chdir('../')   
 
 if __name__ == '__main__':
-    test_mnist()
-    #test_toy()
+    #test_mnist()
+    test_toy()

@@ -209,3 +209,4 @@ def plot_embedding(X, digits_y, title=None):
     plt.xticks([]), plt.yticks([])
     if title is not None:
         plt.title(title)    
+        
