@@ -539,5 +539,5 @@ def test_mnist(learning_rate=0.1,
     os.chdir('../')   
 
 if __name__ == '__main__':
-    #test_mnist()
-    test_toy()
+    test_mnist()
+    #test_toy()
