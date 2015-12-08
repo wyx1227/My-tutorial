@@ -9,6 +9,8 @@ import numpy
 import theano
 import theano.tensor as T
 
+import matplotlib.pyplot as plt
+
 
 def load_data(dataset):
     
