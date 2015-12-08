@@ -521,20 +521,15 @@ def test_mnist(learning_rate=0.1,
     hid_mf, hid_sample = sample_hid_fn()
     
     model_recon = manifold.TSNE(n_components=2, init='pca', random_state=0)
-    
-    
-
-        
         
     X_tsne=model_recon.fit_transform(hid_mf) 
     
     model_original = manifold.TSNE(n_components=2, init='pca', random_state=0)
     
     X_tsne_original=model_original.fit_transform(test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
-    print test_set_y.get_value(borrow=True)[test_idx:test_idx + n_chains]
     
-    plot_embedding(X_tsne, test_set_y.get_value(borrow=True)[test_idx:test_idx + n_chains],'Layer 1')       
-    plot_embedding(X_tsne_original, test_set_y.get_value(borrow=True)[test_idx:test_idx + n_chains],'Original')    
+    plot_embedding(X_tsne, test_set_y[test_idx:test_idx + n_chains].eval(),'Layer 1')       
+    plot_embedding(X_tsne_original, test_set_y[test_idx:test_idx + n_chains].eval(),'Original')    
     
     #f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
     #ax1.scatter(X_tsne_original[:,0], X_tsne_original[:,1])
