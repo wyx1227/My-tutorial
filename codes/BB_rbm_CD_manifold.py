@@ -11,7 +11,7 @@ import timeit
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
-from utils import load_data, tile_raster_images
+from utils import load_data, tile_raster_images, plot_embedding
 
 from toy_dataset import toy_dataset
 
@@ -351,17 +351,21 @@ def test_toy(learning_rate=0.1,
     plt.show()
 
                  
-def test_mnist(learning_rate=0.1, training_epochs=15,
-             dataset='../datasets/mnist.pkl.gz', batch_size=20,
-             n_chains=20, n_samples=10, 
-             output_folder='MNIST_rbm_CD_plots',
-             n_hidden=500):
+def test_mnist(learning_rate=0.1,
+               training_epochs=2,
+               dataset='../datasets/mnist.pkl.gz', 
+               batch_size=20,
+               n_chains=20,
+               n_samples=10, 
+               output_folder='MNIST_rbm_CD_plots',
+               n_hidden=500):
 
     print 'Loading MNIST dataset...'
     datasets = load_data(dataset)
 
     train_set_x, train_set_y = datasets[0]
     test_set_x, test_set_y = datasets[2]
+    
 
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
 
@@ -517,17 +521,24 @@ def test_mnist(learning_rate=0.1, training_epochs=15,
     hid_mf, hid_sample = sample_hid_fn()
     
     model_recon = manifold.TSNE(n_components=2, init='pca', random_state=0)
+    
+    
+
+        
         
     X_tsne=model_recon.fit_transform(hid_mf) 
     
     model_original = manifold.TSNE(n_components=2, init='pca', random_state=0)
     
     X_tsne_original=model_original.fit_transform(test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains])
+    print test_set_y.get_value(borrow=True)[test_idx:test_idx + n_chains]
     
+    plot_embedding(X_tsne, test_set_y.get_value(borrow=True)[test_idx:test_idx + n_chains],'Layer 1')       
+    plot_embedding(X_tsne_original, test_set_y.get_value(borrow=True)[test_idx:test_idx + n_chains],'Original')    
     
-    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
-    ax1.scatter(X_tsne_original[:,0], X_tsne_original[:,1])
-    ax2.scatter(X_tsne[:,0], X_tsne[:,1])
+    #f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+    #ax1.scatter(X_tsne_original[:,0], X_tsne_original[:,1])
+    #ax2.scatter(X_tsne[:,0], X_tsne[:,1])
     plt.show()
     
                  
